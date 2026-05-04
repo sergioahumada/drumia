@@ -16,10 +16,22 @@ export interface Measure {
 
 export interface Note {
   time: number;
-  type: 'kick' | 'snare' | 'hat' | 'tom';
-  position: number; // Línea en la partitura
+  type: string;
+  position: number;
   intensity: number;
+  label: string;
 }
+
+export const DRUM_LINES = [
+  { position: 0, type: 'ride', label: 'Ride', color: '#ffd93d' },
+  { position: 1, type: 'crash', label: 'Crash', color: '#ffab40' },
+  { position: 2, type: 'hat', label: 'Hi-hat', color: '#fbc02d' },
+  { position: 3, type: 'tom1', label: 'Tom 1', color: '#a8dadc' },
+  { position: 4, type: 'tom2', label: 'Tom 2', color: '#81c3d7' },
+  { position: 5, type: 'tom3', label: 'Tom 3', color: '#4db8e8' },
+  { position: 6, type: 'snare', label: 'Snare', color: '#4ecdc4' },
+  { position: 7, type: 'kick', label: 'Kick', color: '#ff6b6b' },
+];
 
 export function generateScore(analysis: AnalysisResult): DrumScore {
   const beatDuration = (60 / analysis.bpm) * 1000;
@@ -34,12 +46,20 @@ export function generateScore(analysis: AnalysisResult): DrumScore {
     const endTime = Math.min(time + measureDuration, analysis.duration);
     const measureEvents = analysis.events.filter((e) => e.time >= time && e.time < endTime);
 
-    const notes: Note[] = measureEvents.map((event) => ({
-      time: event.time,
-      type: event.type,
-      position: getLinePosition(event.type),
-      intensity: event.intensity,
-    }));
+    const notes: Note[] = measureEvents
+      .map((event) => {
+        const drumLine = DRUM_LINES.find((line) => line.type === event.type);
+        if (!drumLine) return null;
+
+        return {
+          time: event.time,
+          type: event.type,
+          position: drumLine.position,
+          intensity: event.intensity,
+          label: drumLine.label,
+        };
+      })
+      .filter((n) => n !== null) as Note[];
 
     measures.push({
       number: measureNumber,
@@ -59,12 +79,7 @@ export function generateScore(analysis: AnalysisResult): DrumScore {
   };
 }
 
-function getLinePosition(type: string): number {
-  const positions: Record<string, number> = {
-    hat: 0,
-    tom: 1,
-    snare: 2,
-    kick: 3,
-  };
-  return positions[type] || 0;
+export function getColorByType(type: string): string {
+  const drumLine = DRUM_LINES.find((line) => line.type === type);
+  return drumLine?.color || '#999';
 }

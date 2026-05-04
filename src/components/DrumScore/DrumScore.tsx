@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { DrumScore as DrumScoreType } from '../../services/scoreGenerator';
+import { DrumScore as DrumScoreType, DRUM_LINES, getColorByType } from '../../services/scoreGenerator';
 import './DrumScore.css';
 
 interface DrumScoreProps {
@@ -8,18 +8,32 @@ interface DrumScoreProps {
   bpm: number;
 }
 
+const PIXELS_PER_SECOND = 100; // Para el zoom
+const LINE_HEIGHT = 28;
+const LABEL_WIDTH = 100;
+
 export function DrumScore({ score, currentTime, bpm }: DrumScoreProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [canvasSize, setCanvasSize] = useState({ width: 800, height: 350 });
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const [viewportWidth, setViewportWidth] = useState(800);
+
+  // AutoScroll para mantener el cursor visible
+  useEffect(() => {
+    if (containerRef.current) {
+      const cursorPixelPos = currentTime / 1000 * PIXELS_PER_SECOND;
+      const viewportCenter = viewportWidth / 2;
+      const scrollTarget = Math.max(0, cursorPixelPos - viewportCenter);
+
+      containerRef.current.scrollLeft = scrollTarget;
+      setScrollLeft(scrollTarget);
+    }
+  }, [currentTime, viewportWidth]);
 
   useEffect(() => {
     const updateSize = () => {
-      if (canvasRef.current?.parentElement) {
-        const parent = canvasRef.current.parentElement;
-        setCanvasSize({
-          width: parent.clientWidth,
-          height: 350,
-        });
+      if (containerRef.current) {
+        setViewportWidth(containerRef.current.clientWidth);
       }
     };
 
@@ -32,10 +46,13 @@ export function DrumScore({ score, currentTime, bpm }: DrumScoreProps) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    canvas.width = canvasSize.width * window.devicePixelRatio;
-    canvas.height = canvasSize.height * window.devicePixelRatio;
-    canvas.style.width = canvasSize.width + 'px';
-    canvas.style.height = canvasSize.height + 'px';
+    const totalWidth = score.duration / 1000 * PIXELS_PER_SECOND;
+    const totalHeight = DRUM_LINES.length * LINE_HEIGHT + 40;
+
+    canvas.width = totalWidth * window.devicePixelRatio;
+    canvas.height = totalHeight * window.devicePixelRatio;
+    canvas.style.width = totalWidth + 'px';
+    canvas.style.height = totalHeight + 'px';
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -44,106 +61,109 @@ export function DrumScore({ score, currentTime, bpm }: DrumScoreProps) {
 
     // Fondo
     ctx.fillStyle = '#1f1f2e';
-    ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
-
-    const padding = 80;
-    const contentWidth = canvasSize.width - padding;
-    const contentHeight = canvasSize.height - 40;
+    ctx.fillRect(0, 0, totalWidth, totalHeight);
 
     // Líneas de la partitura
-    const lineHeight = contentHeight / 4;
-    ctx.strokeStyle = '#444';
+    ctx.strokeStyle = '#333';
     ctx.lineWidth = 1;
 
-    const labels = ['Hi-hat', 'Tom', 'Snare', 'Kick'];
-
-    for (let i = 0; i < 4; i++) {
-      const y = 40 + (i + 1) * lineHeight;
+    DRUM_LINES.forEach((line, index) => {
+      const y = 30 + index * LINE_HEIGHT;
       ctx.beginPath();
-      ctx.moveTo(padding, y);
-      ctx.lineTo(canvasSize.width - 20, y);
+      ctx.moveTo(0, y);
+      ctx.lineTo(totalWidth, y);
       ctx.stroke();
-    }
-
-    // Labels
-    ctx.fillStyle = '#888';
-    ctx.font = 'bold 12px monospace';
-    ctx.textAlign = 'left';
-
-    labels.forEach((label, i) => {
-      ctx.fillText(label, 10, 55 + i * lineHeight);
     });
 
-    // Medidas
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 2;
+    // Medidas cada compás (4 beats)
     const beatDuration = (60 / bpm) * 1000;
-    const beatsPerMeasure = 4;
-    const measureDuration = beatDuration * beatsPerMeasure;
+    const measureDuration = beatDuration * 4;
+    const measurePixels = measureDuration / 1000 * PIXELS_PER_SECOND;
 
-    let measureX = padding;
-    while (measureX < canvasSize.width) {
+    ctx.strokeStyle = '#444';
+    ctx.lineWidth = 2;
+
+    for (let i = 0; i * measurePixels < totalWidth; i++) {
+      const x = i * measurePixels;
       ctx.beginPath();
-      ctx.moveTo(measureX, 30);
-      ctx.lineTo(measureX, canvasSize.height - 10);
+      ctx.moveTo(x, 10);
+      ctx.lineTo(x, totalHeight - 5);
       ctx.stroke();
-      measureX += (contentWidth * measureDuration) / score.duration;
     }
 
-    // Notas
-    const pixelsPerMs = contentWidth / score.duration;
-
-    const noteRadius = 5;
-    const colorMap: Record<string, string> = {
-      hat: '#ffd93d',
-      tom: '#a8dadc',
-      snare: '#4ecdc4',
-      kick: '#ff6b6b',
-    };
+    // Notas: solo mostrar si coinciden con tiempo actual (ventana de tolerancia)
+    const activeWindow = 200; // ms de tolerancia para considerar "activo"
 
     score.measures.forEach((measure) => {
       measure.notes.forEach((note) => {
-        const x = padding + note.time * pixelsPerMs;
-        const y = 40 + (note.position + 0.5) * lineHeight;
+        const isActive = Math.abs(note.time - currentTime) < activeWindow;
+        const x = note.time / 1000 * PIXELS_PER_SECOND;
+        const y = 30 + note.position * LINE_HEIGHT + LINE_HEIGHT / 2;
 
-        // Nota
-        ctx.fillStyle = colorMap[note.type] || '#999';
+        // Color de la nota
+        const baseColor = getColorByType(note.type);
+
+        // Nota principal
+        ctx.fillStyle = isActive ? baseColor : baseColor + '40'; // Más opaco si activo
         ctx.beginPath();
-        ctx.arc(x, y, noteRadius, 0, Math.PI * 2);
+        ctx.arc(x, y, isActive ? 6 : 4, 0, Math.PI * 2);
         ctx.fill();
 
-        // Contorno si es visible
-        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
+        // Contorno si está activo
+        if (isActive) {
+          ctx.strokeStyle = baseColor;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // Aura alrededor
+          ctx.fillStyle = baseColor + '20';
+          ctx.beginPath();
+          ctx.arc(x, y, 10, 0, Math.PI * 2);
+          ctx.fill();
+        }
       });
     });
 
     // Cursor de reproducción
-    const cursorX = padding + currentTime * pixelsPerMs;
-
-    // Sombra del cursor
-    ctx.fillStyle = 'rgba(99, 102, 241, 0.1)';
-    ctx.fillRect(cursorX - 10, 0, 20, canvasSize.height);
+    const cursorX = currentTime / 1000 * PIXELS_PER_SECOND;
 
     // Línea del cursor
     ctx.strokeStyle = '#6366f1';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(cursorX, 20);
-    ctx.lineTo(cursorX, canvasSize.height - 5);
+    ctx.moveTo(cursorX, 0);
+    ctx.lineTo(cursorX, totalHeight);
     ctx.stroke();
 
-    // Círculo en el cursor
+    // Marcador en el cursor
     ctx.fillStyle = '#6366f1';
-    ctx.beginPath();
-    ctx.arc(cursorX, 15, 4, 0, Math.PI * 2);
-    ctx.fill();
-  }, [canvasSize, score, currentTime, bpm]);
+    ctx.fillRect(cursorX - 2, 5, 4, 15);
+  }, [score, currentTime, bpm]);
 
   return (
-    <div className="drum-score">
-      <canvas ref={canvasRef} className="score-canvas" />
+    <div className="drum-score-wrapper">
+      <div className="drum-score-labels">
+        {DRUM_LINES.map((line) => (
+          <div key={line.type} className="drum-label" style={{ height: LINE_HEIGHT }}>
+            <div
+              className="label-dot"
+              style={{ backgroundColor: line.color }}
+            />
+            <span>{line.label}</span>
+          </div>
+        ))}
+      </div>
+
+      <div
+        className="drum-score-container"
+        ref={containerRef}
+      >
+        <canvas ref={canvasRef} className="score-canvas" />
+      </div>
+
+      <div className="zoom-info">
+        <span>🔍 {PIXELS_PER_SECOND}px/sec • Scroll para navegar</span>
+      </div>
     </div>
   );
 }

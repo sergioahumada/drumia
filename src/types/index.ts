@@ -1,4 +1,4 @@
-export type DrumEventType = 'kick' | 'snare' | 'hat' | 'tom';
+export type DrumEventType = 'kick' | 'snare' | 'hat' | 'tom1' | 'tom2' | 'tom3' | 'crash' | 'ride';
 
 export interface DrumEvent {
   time: number;
