@@ -10,23 +10,28 @@ interface DrumScoreProps {
 
 const PIXELS_PER_SECOND = 100; // Para el zoom
 const LINE_HEIGHT = 28;
-const LABEL_WIDTH = 100;
+const LABEL_WIDTH = 120;
 
 export function DrumScore({ score, currentTime, bpm }: DrumScoreProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [scrollLeft, setScrollLeft] = useState(0);
   const [viewportWidth, setViewportWidth] = useState(800);
 
-  // AutoScroll para mantener el cursor visible
+  // AutoScroll suave y preciso
   useEffect(() => {
-    if (containerRef.current) {
-      const cursorPixelPos = currentTime / 1000 * PIXELS_PER_SECOND;
-      const viewportCenter = viewportWidth / 2;
-      const scrollTarget = Math.max(0, cursorPixelPos - viewportCenter);
+    if (!containerRef.current) return;
 
-      containerRef.current.scrollLeft = scrollTarget;
-      setScrollLeft(scrollTarget);
+    const cursorPixelPos = (currentTime / 1000) * PIXELS_PER_SECOND;
+    const viewportCenter = viewportWidth / 2;
+    const scrollTarget = Math.max(0, cursorPixelPos - viewportCenter);
+
+    // Usar requestAnimationFrame para suavidad
+    const current = containerRef.current;
+    const diff = scrollTarget - current.scrollLeft;
+
+    if (Math.abs(diff) > 0.1) {
+      // Scroll suave pero responsivo
+      current.scrollLeft += diff * 0.15;
     }
   }, [currentTime, viewportWidth]);
 
@@ -46,7 +51,7 @@ export function DrumScore({ score, currentTime, bpm }: DrumScoreProps) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const totalWidth = score.duration / 1000 * PIXELS_PER_SECOND;
+    const totalWidth = (score.duration / 1000) * PIXELS_PER_SECOND;
     const totalHeight = DRUM_LINES.length * LINE_HEIGHT + 40;
 
     canvas.width = totalWidth * window.devicePixelRatio;
@@ -78,7 +83,7 @@ export function DrumScore({ score, currentTime, bpm }: DrumScoreProps) {
     // Medidas cada compás (4 beats)
     const beatDuration = (60 / bpm) * 1000;
     const measureDuration = beatDuration * 4;
-    const measurePixels = measureDuration / 1000 * PIXELS_PER_SECOND;
+    const measurePixels = (measureDuration / 1000) * PIXELS_PER_SECOND;
 
     ctx.strokeStyle = '#444';
     ctx.lineWidth = 2;
@@ -97,7 +102,7 @@ export function DrumScore({ score, currentTime, bpm }: DrumScoreProps) {
     score.measures.forEach((measure) => {
       measure.notes.forEach((note) => {
         const isActive = Math.abs(note.time - currentTime) < activeWindow;
-        const x = note.time / 1000 * PIXELS_PER_SECOND;
+        const x = (note.time / 1000) * PIXELS_PER_SECOND;
         const y = 30 + note.position * LINE_HEIGHT + LINE_HEIGHT / 2;
 
         // Color de la nota
@@ -125,7 +130,7 @@ export function DrumScore({ score, currentTime, bpm }: DrumScoreProps) {
     });
 
     // Cursor de reproducción
-    const cursorX = currentTime / 1000 * PIXELS_PER_SECOND;
+    const cursorX = (currentTime / 1000) * PIXELS_PER_SECOND;
 
     // Línea del cursor
     ctx.strokeStyle = '#6366f1';
@@ -154,15 +159,12 @@ export function DrumScore({ score, currentTime, bpm }: DrumScoreProps) {
         ))}
       </div>
 
-      <div
-        className="drum-score-container"
-        ref={containerRef}
-      >
+      <div className="drum-score-container" ref={containerRef}>
         <canvas ref={canvasRef} className="score-canvas" />
       </div>
 
       <div className="zoom-info">
-        <span>🔍 {PIXELS_PER_SECOND}px/sec • Scroll para navegar</span>
+        <span>🔍 {PIXELS_PER_SECOND}px/sec • Scroll automático en tiempo real</span>
       </div>
     </div>
   );
