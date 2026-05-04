@@ -1,0 +1,13 @@
+.drum-score {
+  background: #1f1f2e;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 20px 0;
+}
+
+.score-canvas {
+  width: 100%;
+  height: 300px;
+  display: block;
+  background: #1f1f2e;
+}
