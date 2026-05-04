@@ -1,14 +1,21 @@
 import { AnalysisResult } from '../types';
 
+const FFT_SIZE = 2048;
+
 export async function analyzeAudio(audioBuffer: AudioBuffer): Promise<AnalysisResult> {
   const sampleRate = audioBuffer.sampleRate;
-  const duration = audioBuffer.duration * 1000; // en ms
+  const duration = audioBuffer.duration * 1000;
   const channelData = audioBuffer.getChannelData(0);
 
+  // Detectar BPM
   const bpm = detectBPM(channelData, sampleRate);
   const timeSignature = '4/4';
 
-  const events = analyzeOnsetAndInstruments(channelData, sampleRate, duration, bpm);
+  // Detectar onsets (momentos donde hay golpes)
+  const onsets = detectOnsets(channelData, sampleRate);
+
+  // Clasificar cada onset por instrumento basándose en espectro
+  const events = classifyOnsets(channelData, sampleRate, onsets);
 
   return {
     bpm,
@@ -19,8 +26,8 @@ export async function analyzeAudio(audioBuffer: AudioBuffer): Promise<AnalysisRe
 }
 
 function detectBPM(channelData: Float32Array, sampleRate: number): number {
-  // Detectar energía por ventanas para estimar tempo
-  const windowSize = sampleRate * 0.5; // 500ms ventanas
+  // Dividir en ventanas y calcular energía
+  const windowSize = Math.floor(sampleRate * 0.5); // 500ms
   const energies: number[] = [];
 
   for (let i = 0; i < channelData.length; i += windowSize) {
@@ -29,79 +36,196 @@ function detectBPM(channelData: Float32Array, sampleRate: number): number {
     for (let j = 0; j < window.length; j++) {
       energy += window[j] * window[j];
     }
-    energies.push(energy);
+    energies.push(Math.sqrt(energy / window.length));
   }
 
-  // Buscar periodicidad en la energía para estimar BPM
-  // Por ahora: usar 120 como default, mejorable con FFT
-  return 120;
+  // Buscar el BPM detectando periodicidad en la energía
+  let bestBPM = 120;
+  let maxScore = 0;
+
+  for (let bpm = 60; bpm < 200; bpm += 5) {
+    const beatsPerWindow = (windowSize / sampleRate) * (bpm / 60);
+    let score = 0;
+
+    for (let i = 1; i < energies.length - 1; i++) {
+      const expectedBeatPos = Math.round(i / beatsPerWindow) * beatsPerWindow;
+      if (Math.abs(i - expectedBeatPos) < beatsPerWindow * 0.2) {
+        score += energies[i];
+      }
+    }
+
+    if (score > maxScore) {
+      maxScore = score;
+      bestBPM = bpm;
+    }
+  }
+
+  return bestBPM;
 }
 
-function analyzeOnsetAndInstruments(
-  channelData: Float32Array,
-  sampleRate: number,
-  durationMs: number,
-  bpm: number
-) {
-  const events = [];
-  const beatDuration = (60 / bpm) * 1000;
+function detectOnsets(channelData: Float32Array, sampleRate: number): number[] {
+  const hopSize = Math.floor(sampleRate * 0.01); // 10ms hops
+  const onsets: number[] = [];
+  const energyEnvelope: number[] = [];
 
-  // Generar patrón realista de batería
-  // Esto se reemplazará con análisis real usando onset detection
-
-  for (let time = 0; time < durationMs; time += beatDuration) {
-    const beatNumber = (time / beatDuration) % 4;
-
-    // Kick: beats 1, 2.5, 3
-    if (beatNumber === 0 || beatNumber === 1 || beatNumber === 2 || beatNumber === 2.5) {
-      if (Math.floor(beatNumber) !== Math.floor((time + beatDuration) / beatDuration)) {
-        events.push({ time, type: 'kick' as const, intensity: 0.85 });
-      }
+  // Calcular envolvente de energía
+  for (let i = 0; i < channelData.length; i += hopSize) {
+    const window = channelData.slice(i, Math.min(i + hopSize, channelData.length));
+    let energy = 0;
+    for (let j = 0; j < window.length; j++) {
+      energy += window[j] * window[j];
     }
+    energyEnvelope.push(Math.sqrt(energy / window.length));
+  }
 
-    // Snare: beats 2 y 4 (backbeat)
-    if (beatNumber === 1 || beatNumber === 3) {
-      events.push({ time, type: 'snare' as const, intensity: 0.75 });
-    }
+  // Detectar picos (onsets) usando derivada
+  const threshold = computeAdaptiveThreshold(energyEnvelope);
 
-    // Hi-hat cerrado: cada 8va nota
-    for (let i = 0; i < 8; i++) {
-      const hatTime = time + (beatDuration / 8) * i;
-      if (hatTime < durationMs) {
-        events.push({
-          time: hatTime,
-          type: 'hat' as const,
-          intensity: 0.4 + Math.random() * 0.2,
-        });
-      }
-    }
+  for (let i = 1; i < energyEnvelope.length - 1; i++) {
+    const derivative = energyEnvelope[i] - energyEnvelope[i - 1];
 
-    // Crash: cada 4 beats
-    if (beatNumber === 0) {
-      events.push({ time, type: 'crash' as const, intensity: 0.9 });
-    }
+    if (derivative > threshold && energyEnvelope[i] > 0.02) {
+      // Validar que no sea muy cercano al onset anterior
+      const timeSinceLastOnset = (i - (onsets.length > 0 ? onsets[onsets.length - 1] : 0)) * hopSize;
 
-    // Ride: pulsos fuertes en beats pares
-    if (beatNumber === 0 || beatNumber === 2) {
-      events.push({
-        time: time + beatDuration * 0.5,
-        type: 'ride' as const,
-        intensity: 0.6,
-      });
-    }
-
-    // Toms: fills ocasionales
-    if (beatNumber === 3 && Math.random() > 0.7) {
-      // Fill con toms
-      for (let j = 0; j < 3; j++) {
-        events.push({
-          time: time + (beatDuration * (0.5 + j * 0.15)),
-          type: (['tom1', 'tom2', 'tom3'] as const)[j],
-          intensity: 0.7,
-        });
+      if (timeSinceLastOnset > sampleRate * 0.05) {
+        // Mínimo 50ms entre onsets
+        onsets.push(i * hopSize);
       }
     }
   }
 
-  return events.sort((a, b) => a.time - b.time);
+  return onsets;
+}
+
+function computeAdaptiveThreshold(energyEnvelope: number[]): number {
+  const sorted = [...energyEnvelope].sort((a, b) => a - b);
+  const q75 = sorted[Math.floor(sorted.length * 0.75)];
+  return q75 * 0.5; // 50% del percentil 75
+}
+
+function classifyOnsets(
+  channelData: Float32Array,
+  sampleRate: number,
+  onsetSamples: number[]
+): Array<{
+  time: number;
+  type: 'kick' | 'snare' | 'hat' | 'tom1' | 'tom2' | 'tom3' | 'crash' | 'ride';
+  intensity: number;
+}> {
+  const events: Array<{
+    time: number;
+    type: 'kick' | 'snare' | 'hat' | 'tom1' | 'tom2' | 'tom3' | 'crash' | 'ride';
+    intensity: number;
+  }> = [];
+
+  onsetSamples.forEach((onsetSample) => {
+    const windowStart = Math.max(0, onsetSample - FFT_SIZE / 2);
+    const windowEnd = Math.min(channelData.length, onsetSample + FFT_SIZE / 2);
+    const window = channelData.slice(windowStart, windowEnd);
+
+    // Calcular espectro simple por bandas de frecuencia
+    const spectrum = computeSimpleSpectrum(window, sampleRate);
+
+    // Clasificar basándose en contenido espectral
+    const type = classifyBySpectrum(spectrum);
+    const intensity = computeIntensity(window);
+
+    events.push({
+      time: (onsetSample / sampleRate) * 1000,
+      type,
+      intensity: Math.min(1, intensity * 1.2),
+    });
+  });
+
+  return events;
+}
+
+function computeSimpleSpectrum(window: Float32Array, sampleRate: number): Record<string, number> {
+  // Dividir en bandas de frecuencia sin FFT completo
+  const bands = {
+    bass: 0, // 0-150 Hz (kick)
+    lowMid: 0, // 150-500 Hz
+    mid: 0, // 500-2000 Hz (snare)
+    highMid: 0, // 2000-5000 Hz (tom)
+    presence: 0, // 5000-12000 Hz (hat, crash)
+    high: 0, // 12000+ Hz
+  };
+
+  // RMS por banda (aproximación sin FFT)
+  let rms = 0;
+  for (let i = 0; i < window.length; i++) {
+    rms += window[i] * window[i];
+  }
+  rms = Math.sqrt(rms / window.length);
+
+  // Usar características temporales para aproximar contenido espectral
+  const zeroCrossings = countZeroCrossings(window);
+  const spectralCentroid = estimateSpectralCentroid(window);
+
+  bands.bass = rms * Math.max(0, 1 - zeroCrossings / 100);
+  bands.mid = rms * (zeroCrossings / 150);
+  bands.presence = rms * Math.max(0, zeroCrossings / 200);
+  bands.high = rms * Math.max(0, (zeroCrossings - 200) / 200);
+
+  return bands;
+}
+
+function countZeroCrossings(window: Float32Array): number {
+  let count = 0;
+  for (let i = 1; i < window.length; i++) {
+    if ((window[i] > 0 && window[i - 1] < 0) || (window[i] < 0 && window[i - 1] > 0)) {
+      count++;
+    }
+  }
+  return count;
+}
+
+function estimateSpectralCentroid(window: Float32Array): number {
+  let sum = 0;
+  let weightedSum = 0;
+
+  for (let i = 0; i < window.length; i++) {
+    const mag = Math.abs(window[i]);
+    sum += mag;
+    weightedSum += mag * i;
+  }
+
+  return sum === 0 ? 0 : weightedSum / sum;
+}
+
+function classifyBySpectrum(spectrum: Record<string, number>): 'kick' | 'snare' | 'hat' | 'tom1' | 'tom2' | 'tom3' | 'crash' | 'ride' {
+  const bass = spectrum.bass;
+  const mid = spectrum.mid;
+  const presence = spectrum.presence;
+  const high = spectrum.high;
+
+  // Lógica de clasificación basada en contenido espectral
+  if (bass > mid && bass > presence) {
+    return 'kick';
+  } else if (mid > bass && mid > presence) {
+    return 'snare';
+  } else if (presence > mid && presence > bass && presence > high) {
+    return 'hat';
+  } else if (high > presence) {
+    return 'crash';
+  } else if (mid > presence && mid > bass) {
+    return 'ride';
+  } else if (presence > bass) {
+    // Tom clasificación por intensidad
+    const intensity = bass + mid + presence;
+    if (intensity > 0.8) return 'tom1';
+    if (intensity > 0.5) return 'tom2';
+    return 'tom3';
+  }
+
+  return 'hat'; // Default
+}
+
+function computeIntensity(window: Float32Array): number {
+  let rms = 0;
+  for (let i = 0; i < window.length; i++) {
+    rms += window[i] * window[i];
+  }
+  return Math.sqrt(rms / window.length);
 }
