@@ -63,18 +63,35 @@ body {
 .info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+}
+
+.files-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.files-info .label {
+  color: var(--text-muted);
+  font-weight: 500;
+  min-width: 70px;
 }
 
 .filename {
-  font-size: 14px;
   color: var(--text-light);
   font-weight: 500;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .metadata {
   font-size: 12px;
   color: var(--text-muted);
+  margin-top: 2px;
 }
 
 .reset-btn {

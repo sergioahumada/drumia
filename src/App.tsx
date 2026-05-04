@@ -10,22 +10,38 @@ import { useLocalStorage } from './hooks/useLocalStorage';
 import { AnalysisResult } from './types';
 import './App.css';
 
+interface AudioFiles {
+  drum: File | null;
+  drumBuffer: AudioBuffer | null;
+  song?: File | null;
+  songBuffer?: AudioBuffer | null;
+}
+
 function App() {
-  const [audioBuffer, setAudioBuffer] = useState<AudioBuffer | null>(null);
+  const [drumBuffer, setDrumBuffer] = useState<AudioBuffer | null>(null);
+  const [songBuffer, setSongBuffer] = useState<AudioBuffer | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [currentFileName, setCurrentFileName] = useState<string>('');
+  const [drumFileName, setDrumFileName] = useState<string>('');
+  const [songFileName, setSongFileName] = useState<string>('');
 
-  const audioPlayback = useAudioPlayback(audioBuffer);
+  // Usar el buffer de la canción si existe, sino la batería
+  const playbackBuffer = songBuffer || drumBuffer;
+  const audioPlayback = useAudioPlayback(playbackBuffer);
   const storage = useLocalStorage();
 
-  const handleAudioLoaded = async (file: File, buffer: AudioBuffer) => {
-    setAudioBuffer(buffer);
-    setCurrentFileName(file.name);
+  const handleAudioLoaded = async (files: AudioFiles) => {
+    if (!files.drumBuffer) return;
+
+    setDrumBuffer(files.drumBuffer);
+    setDrumFileName(files.drum?.name || '');
+    setSongBuffer(files.songBuffer || null);
+    setSongFileName(files.song?.name || '');
     setIsAnalyzing(true);
 
     try {
-      const result = await analyzeAudio(buffer);
+      // Analizar siempre la batería para la partitura
+      const result = await analyzeAudio(files.drumBuffer);
       setAnalysis(result);
     } catch (error) {
       console.error('Error analyzing audio:', error);
@@ -36,13 +52,15 @@ function App() {
 
   const handleReset = () => {
     audioPlayback.stop();
-    setAudioBuffer(null);
+    setDrumBuffer(null);
+    setSongBuffer(null);
     setAnalysis(null);
-    setCurrentFileName('');
+    setDrumFileName('');
+    setSongFileName('');
   };
 
   // Pantalla de carga
-  if (!audioBuffer || !analysis) {
+  if (!drumBuffer || !analysis) {
     return <AudioUploader onAudioLoaded={handleAudioLoaded} isLoading={isAnalyzing} />;
   }
 
@@ -55,7 +73,16 @@ function App() {
         <div className="header-content">
           <h1>DRUMIA</h1>
           <div className="info">
-            <span className="filename">{currentFileName}</span>
+            <div className="files-info">
+              <span className="label">Batería:</span>
+              <span className="filename">{drumFileName}</span>
+            </div>
+            {songFileName && (
+              <div className="files-info">
+                <span className="label">Canción:</span>
+                <span className="filename">{songFileName}</span>
+              </div>
+            )}
             <span className="metadata">{analysis.bpm} BPM • {analysis.timeSignature}</span>
           </div>
         </div>
