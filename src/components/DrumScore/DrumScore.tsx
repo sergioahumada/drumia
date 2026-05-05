@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import { useRef, useEffect } from "react";
 import * as PIXI from "pixi.js";
 import {
   DrumScore as DrumScoreType,
@@ -19,12 +19,6 @@ const LINE_HEIGHT = 28;
 export function DrumScore({ score, getCurrentTime, bpm, focusSection }: DrumScoreProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<PIXI.Application | null>(null);
-  const elementsRef = useRef<{
-    scoreContainer: PIXI.Container;
-    cursor: PIXI.Graphics;
-    notesGraphics: PIXI.Graphics;
-    activeNotesGraphics: PIXI.Graphics;
-  } | null>(null);
 
   const totalHeight = DRUM_LINES.length * LINE_HEIGHT + 40;
 

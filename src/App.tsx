@@ -3,13 +3,10 @@ import { AudioUploader } from "./components/AudioUploader/AudioUploader";
 import { Player } from "./components/Player/Player";
 import { DrumScore } from "./components/DrumScore/DrumScore";
 import { MetronomeVisual } from "./components/MetronomeVisual/MetronomeVisual";
-import { SongStructureComponent } from "./components/SongStructure/SongStructure";
 import { analyzeAudio } from "./services/audioAnalyzer";
 import { generateScore } from "./services/scoreGenerator";
 import { useAudioPlayback } from "./hooks/useAudioPlayback";
-import { useLocalStorage } from "./hooks/useLocalStorage";
-import { AnalysisResult, DrumEventType } from "./types";
-import { SongStructure } from "./services/songStructureParser";
+import { AnalysisResult } from "./types";
 
 interface AudioFiles {
   drum: File | null;
@@ -31,8 +28,7 @@ function App() {
   // Usar el buffer de la canción si existe, sino la batería
   const playbackBuffer = songBuffer || drumBuffer;
   const audioPlayback = useAudioPlayback(playbackBuffer);
-  const storage = useLocalStorage();
-  const score = React.useMemo(() => analysis ? generateScore(analysis) : null, [analysis]);
+  const score = React.useMemo(() => (analysis ? generateScore(analysis) : null), [analysis]);
 
   const handleAudioLoaded = async (files: AudioFiles) => {
     if (!files.drumBuffer) return;
@@ -50,7 +46,9 @@ function App() {
       setAnalysis(result);
     } catch (error) {
       console.error("Error analyzing audio:", error);
-      setAnalysisError("Hubo un problema al analizar el audio. Intenta con un archivo más corto o de mejor calidad.");
+      setAnalysisError(
+        "Hubo un problema al analizar el audio. Intenta con un archivo más corto o de mejor calidad.",
+      );
     } finally {
       setIsAnalyzing(false);
     }
@@ -66,16 +64,12 @@ function App() {
     setFocusSection(null);
   };
 
-  const handleFocusSectionChange = (startMs: number, endMs: number) => {
-    setFocusSection({ startMs, endMs });
-  };
-
   // Pantalla de carga
   if (!drumBuffer || !analysis || !score) {
     return (
-      <AudioUploader 
-        onAudioLoaded={handleAudioLoaded} 
-        isLoading={isAnalyzing} 
+      <AudioUploader
+        onAudioLoaded={handleAudioLoaded}
+        isLoading={isAnalyzing}
         externalError={analysisError}
       />
     );
