@@ -11,6 +11,8 @@ export function useAudioPlayback(audioBuffer: AudioBuffer | null) {
   const startTimeRef = useRef<number>(0);
   const pausedTimeRef = useRef<number>(0);
   const animationFrameRef = useRef<number | null>(null);
+  const isPlayingRef = useRef(false);
+  const speedRef = useRef(1);
 
   useEffect(() => {
     if (audioBuffer) {
@@ -21,32 +23,37 @@ export function useAudioPlayback(audioBuffer: AudioBuffer | null) {
     }
   }, [audioBuffer]);
 
-  const updateTime = useCallback(() => {
-    if (isPlaying && audioContextRef.current) {
-      const elapsed = (audioContextRef.current.currentTime - startTimeRef.current) * 1000;
-      const newTime = pausedTimeRef.current + elapsed;
-      setCurrentTime(Math.min(newTime, duration));
-
-      if (newTime < duration) {
-        animationFrameRef.current = requestAnimationFrame(updateTime);
-      }
-    }
-  }, [isPlaying, duration]);
+  // Actualizar refs para evitar stale closures
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
 
   useEffect(() => {
-    if (isPlaying) {
-      animationFrameRef.current = requestAnimationFrame(updateTime);
+    speedRef.current = speed;
+  }, [speed]);
+
+  const updateTime = useCallback(() => {
+    if (!isPlayingRef.current || !audioContextRef.current) {
+      return;
     }
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [isPlaying, updateTime]);
+
+    const elapsed = (audioContextRef.current.currentTime - startTimeRef.current) * 1000 * speedRef.current;
+    const newTime = pausedTimeRef.current + elapsed;
+
+    if (newTime >= duration) {
+      setCurrentTime(duration);
+      setIsPlaying(false);
+      return;
+    }
+
+    setCurrentTime(newTime);
+    animationFrameRef.current = requestAnimationFrame(updateTime);
+  }, [duration]);
 
   const play = useCallback(() => {
     if (!audioBuffer || !audioContextRef.current) return;
 
+    // Parar fuente anterior si existe
     if (sourceRef.current) {
       try {
         sourceRef.current.stop();
@@ -55,20 +62,28 @@ export function useAudioPlayback(audioBuffer: AudioBuffer | null) {
 
     const source = audioContextRef.current.createBufferSource();
     source.buffer = audioBuffer;
-    source.playbackRate.value = speed;
+    source.playbackRate.value = speedRef.current;
     source.connect(audioContextRef.current.destination);
 
     sourceRef.current = source;
     startTimeRef.current = audioContextRef.current.currentTime;
-    source.start(0, pausedTimeRef.current / 1000);
+    const offsetTime = pausedTimeRef.current / 1000;
+    source.start(0, offsetTime);
+
     setIsPlaying(true);
-  }, [audioBuffer, speed]);
+    animationFrameRef.current = requestAnimationFrame(updateTime);
+  }, [audioBuffer, updateTime]);
 
   const pause = useCallback(() => {
-    if (sourceRef.current && audioContextRef.current) {
-      sourceRef.current.stop();
-      pausedTimeRef.current = currentTime;
-      setIsPlaying(false);
+    if (sourceRef.current) {
+      try {
+        sourceRef.current.stop();
+      } catch {}
+    }
+    pausedTimeRef.current = currentTime;
+    setIsPlaying(false);
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
     }
   }, [currentTime]);
 
@@ -81,27 +96,43 @@ export function useAudioPlayback(audioBuffer: AudioBuffer | null) {
     pausedTimeRef.current = 0;
     setCurrentTime(0);
     setIsPlaying(false);
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
   }, []);
 
-  const seek = useCallback((time: number) => {
-    pausedTimeRef.current = Math.min(time, duration);
-    setCurrentTime(pausedTimeRef.current);
+  const seek = useCallback(
+    (time: number) => {
+      const newTime = Math.min(time, duration);
+      pausedTimeRef.current = newTime;
+      setCurrentTime(newTime);
 
-    if (isPlaying) {
-      if (sourceRef.current) {
-        try {
-          sourceRef.current.stop();
-        } catch {}
+      if (isPlayingRef.current) {
+        if (sourceRef.current) {
+          try {
+            sourceRef.current.stop();
+          } catch {}
+        }
+        play();
       }
-      play();
-    }
-  }, [isPlaying, duration, play]);
+    },
+    [duration, play]
+  );
 
   const changeSpeed = useCallback((newSpeed: number) => {
+    speedRef.current = newSpeed;
     setSpeed(newSpeed);
     if (sourceRef.current) {
       sourceRef.current.playbackRate.value = newSpeed;
     }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
   }, []);
 
   return {

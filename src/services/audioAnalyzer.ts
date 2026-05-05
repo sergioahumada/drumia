@@ -180,29 +180,62 @@ function classifyDrumInstrument(features: {
 }): 'kick' | 'snare' | 'hat' | 'tom1' | 'tom2' | 'tom3' | 'crash' | 'ride' {
   const { spectralCentroid, zeroCrossingRate, energy } = features;
 
-  // Rangos típicos de centroide espectral:
-  // Kick: 0-200 Hz
-  // Snare: 3000-6000 Hz
-  // Hi-hat: 7000-12000 Hz
-  // Crash: 8000-15000 Hz
-  // Tom: 2000-5000 Hz
+  // Normalizar valores
+  const sc = Math.max(0, Math.min(15000, spectralCentroid || 5000));
+  const zcr = Math.max(0, Math.min(1, zeroCrossingRate || 0.5));
+  const e = Math.max(0, Math.min(1, energy || 0.5));
 
-  if (spectralCentroid < 300) {
+  // Clasificación basada en características:
+  // Kick: baja frecuencia + baja energía (ataque lento)
+  // Snare: media-alta frecuencia + energía media + alto ZCR
+  // Hat: alta frecuencia + energía media-baja + muy alto ZCR
+  // Crash: muy alta frecuencia + energía baja + muy alto ZCR
+  // Tom: frecuencia media + energía alta
+  // Ride: frecuencia media-alta + energía media + ZCR bajo
+
+  // Prioridad 1: Detectar Kick (frecuencia muy baja)
+  if (sc < 400) {
     return 'kick';
-  } else if (spectralCentroid < 2000) {
-    return 'tom3';
-  } else if (spectralCentroid < 3500) {
-    return 'tom2';
-  } else if (spectralCentroid < 5000) {
-    // Snare o Tom1
-    return energy > 0.5 ? 'snare' : 'tom1';
-  } else if (spectralCentroid < 7000) {
-    return 'ride';
-  } else if (spectralCentroid < 10000) {
-    return 'hat';
-  } else {
+  }
+
+  // Prioridad 2: Detectar Crash (frecuencia muy alta + ZCR muy alto)
+  if (sc > 10000 && zcr > 0.6) {
     return 'crash';
   }
+
+  // Prioridad 3: Detectar Hi-hat (frecuencia alta + ZCR alto + energía media)
+  if (sc > 7000 && zcr > 0.5 && e < 0.7) {
+    return 'hat';
+  }
+
+  // Prioridad 4: Detectar Snare (frecuencia media + energía + ZCR)
+  if (sc > 3000 && sc < 7000 && zcr > 0.4 && e > 0.4) {
+    return 'snare';
+  }
+
+  // Prioridad 5: Detectar Ride (frecuencia media-alta + ZCR bajo-medio)
+  if (sc > 5000 && sc < 8000 && zcr < 0.4) {
+    return 'ride';
+  }
+
+  // Prioridad 6: Detectar Toms (frecuencia media + energía alta)
+  if (sc > 1500 && sc < 5000 && e > 0.5) {
+    // Clasificar por altura (espectrocentroid)
+    if (sc > 3500) {
+      return 'tom1'; // Tom agudo
+    } else if (sc > 2500) {
+      return 'tom2'; // Tom medio
+    } else {
+      return 'tom3'; // Tom grave
+    }
+  }
+
+  // Fallback: por ZCR
+  if (zcr > 0.6) return 'hat';
+  if (zcr > 0.4) return 'snare';
+  if (e > 0.5) return 'tom2';
+
+  return 'hat'; // Default final
 }
 
 function fallbackAnalysis(
