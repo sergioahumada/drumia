@@ -15,8 +15,8 @@ interface DrumScoreProps {
   cleanMode?: boolean;
 }
 
-const PPS = 100; // pixels per second
-const LINE_HEIGHT = 28;
+const PPS = 120; // Aumentamos velocidad de scroll visual
+const LINE_HEIGHT = 45;
 
 export function DrumScore({
   score,
@@ -41,7 +41,7 @@ export function DrumScore({
       try {
         await app.init({
           width: containerRef.current.clientWidth,
-          height: 300,
+          height: 500,
           backgroundColor: 0x1f1f2e,
           antialias: true,
           resolution: window.devicePixelRatio || 1,
@@ -100,7 +100,7 @@ export function DrumScore({
         scoreContainer.addChild(notesGraphics);
 
         // --- Filtering Logic ---
-        const MIN_DISTANCE_MS = 80;
+        const MIN_DISTANCE_MS = 300;
         const processedNotes: Note[] = [];
 
         score.measures.forEach((m) => {
@@ -117,7 +117,7 @@ export function DrumScore({
             const x = (note.time / 1000) * PPS;
             const y = 30 + note.position * LINE_HEIGHT + LINE_HEIGHT / 2;
             const color = PIXI.Color.shared.setValue(getColorByType(note.type)).toNumber();
-            notesGraphics.beginFill(color, 0.3).drawCircle(x, y, 4).endFill();
+            notesGraphics.beginFill(color, 0.4).drawCircle(x, y, 8).endFill();
           });
         });
 
@@ -156,12 +156,12 @@ export function DrumScore({
 
                 activeNotesGraphics
                   .beginFill(color, 0.2 * alpha)
-                  .drawCircle(nx, ny, 11)
+                  .drawCircle(nx, ny, 22)
                   .endFill();
                 activeNotesGraphics
-                  .setStrokeStyle({ width: 1.5, color: 0xffffff, alpha: alpha })
+                  .setStrokeStyle({ width: 2.5, color: 0xffffff, alpha: alpha })
                   .beginFill(color, alpha)
-                  .drawCircle(nx, ny, 6)
+                  .drawCircle(nx, ny, 12)
                   .endFill()
                   .stroke();
               }
@@ -172,7 +172,7 @@ export function DrumScore({
         // Handle Manual Resize
         const handleResize = () => {
           if (app && containerRef.current) {
-            app.renderer.resize(containerRef.current.clientWidth, 300);
+            app.renderer.resize(containerRef.current.clientWidth, 500);
           }
         };
         window.addEventListener("resize", handleResize);
@@ -201,14 +201,14 @@ export function DrumScore({
   }, [score, bpm, focusSection, cleanMode]);
 
   return (
-    <div className="flex flex-col bg-[#1f1f2e] rounded-lg overflow-hidden my-5 border border-gray-800 h-[300px]">
+    <div className="flex flex-col bg-[#1f1f2e] rounded-xl overflow-hidden my-6 border border-gray-800 h-[500px] shadow-2xl">
       <div className="flex flex-1 overflow-hidden">
         {/* Fixed labels */}
         <div className="flex flex-col bg-gradient-to-br from-[#2a2a3e] to-[#35354f] border-r-[3px] border-indigo-500 w-[110px] sm:w-[140px] shrink-0 overflow-y-auto z-20 pt-7.5 pb-1 sm:pt-[30px] sm:pb-[5px]">
           {DRUM_LINES.map((line) => (
             <div
               key={line.type}
-              className="flex items-center justify-start gap-1.5 sm:gap-2.5 px-2 sm:px-2.5 border-b border-gray-700 text-[11px] sm:text-xs font-semibold text-gray-200 h-[26px] sm:h-[28px] whitespace-nowrap shrink-0 transition-all hover:bg-indigo-500/15 hover:text-indigo-500 hover:pl-3 cursor-default group"
+              className="flex items-center justify-start gap-3 px-4 border-b border-gray-700/50 text-xs sm:text-sm font-bold text-gray-200 h-[45px] whitespace-nowrap shrink-0 transition-all hover:bg-indigo-500/15 hover:text-indigo-500 hover:pl-6 cursor-default group"
             >
               <div
                 className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full shrink-0 opacity-90 transition-all group-hover:scale-125 group-hover:shadow-[0_0_12px_currentColor]"
