@@ -1,6 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { validateAudioFile, decodeAudioFile } from '../../services/audioProcessor';
-import './AudioUploader.css';
+import React, { useRef, useState } from "react";
+import { validateAudioFile, decodeAudioFile } from "../../services/audioProcessor";
 
 interface AudioFiles {
   drum: File | null;
@@ -12,13 +11,38 @@ interface AudioFiles {
 interface AudioUploaderProps {
   onAudioLoaded: (files: AudioFiles) => void;
   isLoading?: boolean;
+  externalError?: string | null;
 }
 
-export function AudioUploader({ onAudioLoaded, isLoading = false }: AudioUploaderProps) {
+export function AudioUploader({ 
+  onAudioLoaded, 
+  isLoading = false, 
+  externalError = null 
+}: AudioUploaderProps) {
   const drumInputRef = useRef<HTMLInputElement>(null);
   const songInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
+  const [isDecoding, setIsDecoding] = useState(false);
+
+  const loadingMessages = [
+    "Analizando transientes...",
+    "Calculando el pulso (BPM)...",
+    "Identificando patrones de bombo y redoblante...",
+    "Generando partitura digital...",
+    "Preparando tu sala de ensayo...",
+  ];
+
+  React.useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isLoading) {
+      interval = setInterval(() => {
+        setLoadingStep((prev) => (prev + 1) % loadingMessages.length);
+      }, 2500);
+    }
+    return () => clearInterval(interval);
+  }, [isLoading]);
   const [files, setFiles] = useState<AudioFiles>({
     drum: null,
     drumBuffer: null,
@@ -26,20 +50,21 @@ export function AudioUploader({ onAudioLoaded, isLoading = false }: AudioUploade
     songBuffer: null,
   });
 
-  const handleFile = async (file: File, type: 'drum' | 'song') => {
+  const handleFile = async (file: File, type: "drum" | "song") => {
     const validation = validateAudioFile(file);
     if (!validation.valid) {
-      setError(validation.error || 'Error desconocido');
+      setError(validation.error || "Error desconocido");
       return;
     }
 
     try {
       setError(null);
+      setIsDecoding(true);
       const buffer = await decodeAudioFile(file);
 
       setFiles((prev) => {
         const updated = { ...prev };
-        if (type === 'drum') {
+        if (type === "drum") {
           updated.drum = file;
           updated.drumBuffer = buffer;
         } else {
@@ -49,29 +74,31 @@ export function AudioUploader({ onAudioLoaded, isLoading = false }: AudioUploade
         return updated;
       });
     } catch (err) {
-      setError('Error al procesar el archivo de audio');
+      setError("Error al procesar el archivo de audio");
       console.error(err);
+    } finally {
+      setIsDecoding(false);
     }
   };
 
   const handleDrumChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
-      handleFile(e.target.files[0], 'drum');
+      handleFile(e.target.files[0], "drum");
     }
   };
 
   const handleSongChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
-      handleFile(e.target.files[0], 'song');
+      handleFile(e.target.files[0], "song");
     }
   };
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
+    if (e.type === "dragenter" || e.type === "dragover") {
       setDragActive(true);
-    } else if (e.type === 'dragleave') {
+    } else if (e.type === "dragleave") {
       setDragActive(false);
     }
   };
@@ -82,7 +109,7 @@ export function AudioUploader({ onAudioLoaded, isLoading = false }: AudioUploade
     setDragActive(false);
 
     if (e.dataTransfer.files?.[0]) {
-      handleFile(e.dataTransfer.files[0], 'drum');
+      handleFile(e.dataTransfer.files[0], "drum");
     }
   };
 
@@ -93,17 +120,22 @@ export function AudioUploader({ onAudioLoaded, isLoading = false }: AudioUploade
   };
 
   return (
-    <div className="audio-uploader">
-      <div className="uploader-container">
-        <div className="header">
-          <h1>DRUMIA</h1>
-          <p>Aprende a tocar batería</p>
+    <div className="w-full min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1f1f2e] to-[#2a2a3e] p-5">
+      <div className="w-full max-w-[700px] p-6 sm:p-10 rounded-2xl bg-[#1f1f2e]/80 backdrop-blur-md border border-indigo-500/20 flex flex-col gap-8">
+        <div className="text-center flex flex-col items-center gap-4">
+          <img
+            src="/logo.png"
+            alt="Drumia Logo"
+            className="w-[100px] rounded-lg h-[100px] sm:w-[120px] sm:h-[120px] object-contain drop-shadow-[0_0_20px_rgba(99,102,241,0.4)] animate-logo-pulse"
+          />
+          <p className="text-gray-400 text-base sm:text-lg">Aprende a tocar batería</p>
         </div>
 
-        <div className="upload-sections">
-          {/* Sección de Batería (obligatorio) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div
-            className={`upload-section drum ${dragActive ? 'active' : ''}`}
+            className={`p-6 border-2 border-dashed rounded-xl text-center transition-all bg-white/5 cursor-pointer flex flex-col gap-4 items-center justify-center min-h-[160px] sm:min-h-[200px] ${
+              dragActive ? "border-indigo-500 bg-indigo-500/10 scale-[1.02]" : "border-gray-600"
+            }`}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
@@ -114,76 +146,102 @@ export function AudioUploader({ onAudioLoaded, isLoading = false }: AudioUploade
               type="file"
               accept="audio/*"
               onChange={handleDrumChange}
-              disabled={isLoading}
-              className="file-input"
+              disabled={isLoading || isDecoding}
+              className="hidden"
             />
 
-            <div className="section-label">🥁 Batería (obligatorio)</div>
+            <div className="font-semibold text-gray-300 text-sm">🥁 Batería (obligatorio)</div>
 
             {files.drum ? (
-              <div className="file-selected">
-                <span className="checkmark">✓</span>
-                <span className="filename">{files.drum.name}</span>
+              <div className="flex items-center gap-2 text-[#4ecdc4] text-sm">
+                <span className="text-xl font-bold">✓</span>
+                <span className="max-w-[150px] sm:max-w-[200px] truncate">{files.drum.name}</span>
               </div>
             ) : (
               <>
                 <button
                   onClick={() => drumInputRef.current?.click()}
-                  disabled={isLoading}
-                  className="upload-btn"
+                  disabled={isLoading || isDecoding}
+                  className="px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-indigo-500 to-pink-500 rounded-lg transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(99,102,241,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isLoading ? 'Procesando...' : 'Selecciona batería'}
+                  {isDecoding ? "Decodificando..." : "Selecciona batería"}
                 </button>
-                <p className="upload-hint">o arrastra aquí</p>
+                <p className="text-[#666] text-xs m-0">o arrastra aquí</p>
               </>
             )}
           </div>
 
-          {/* Sección de Canción (opcional) */}
-          <div className="upload-section song">
+          <div className="p-6 border-2 border-dashed border-gray-600 rounded-xl text-center transition-all bg-white/5 hover:border-pink-500 hover:bg-pink-500/5 cursor-pointer flex flex-col gap-4 items-center justify-center min-h-[160px] sm:min-h-[200px]">
             <input
               ref={songInputRef}
               type="file"
               accept="audio/*"
               onChange={handleSongChange}
-              disabled={isLoading}
-              className="file-input"
+              disabled={isLoading || isDecoding}
+              className="hidden"
             />
 
-            <div className="section-label">🎵 Canción (opcional)</div>
+            <div className="font-semibold text-gray-300 text-sm">🎵 Canción (opcional)</div>
 
             {files.song ? (
-              <div className="file-selected">
-                <span className="checkmark">✓</span>
-                <span className="filename">{files.song.name}</span>
+              <div className="flex items-center gap-2 text-[#4ecdc4] text-sm">
+                <span className="text-xl font-bold">✓</span>
+                <span className="max-w-[150px] sm:max-w-[200px] truncate">{files.song.name}</span>
               </div>
             ) : (
               <>
                 <button
                   onClick={() => songInputRef.current?.click()}
-                  disabled={isLoading}
-                  className="upload-btn secondary"
+                  disabled={isLoading || isDecoding}
+                  className="px-5 py-2.5 text-sm font-semibold text-indigo-500 bg-indigo-500/20 rounded-lg transition-all hover:bg-indigo-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isLoading ? 'Procesando...' : 'Selecciona canción'}
+                  {isDecoding ? "Decodificando..." : "Selecciona canción"}
                 </button>
-                <p className="upload-hint">(para mejor práctica)</p>
+                <p className="text-[#666] text-xs m-0">(para mejor práctica)</p>
               </>
             )}
           </div>
         </div>
 
-        <p className="format-info">Formatos: MP3, WAV, OGG, M4A • Máximo: 10 minutos</p>
+        <p className="text-[#555] text-xs text-center m-0">
+          Formatos: MP3, WAV, OGG, M4A • Máximo: 10 minutos
+        </p>
 
-        {error && <p className="error-message">{error}</p>}
+        {(error || externalError) && (
+          <p className="text-[#ff6b6b] p-3 bg-red-500/10 rounded-lg m-0 border border-red-500/30 text-sm">
+            {error || externalError}
+          </p>
+        )}
 
         <button
           onClick={handleStart}
           disabled={!files.drumBuffer || isLoading}
-          className="start-btn"
+          className="px-7 py-3.5 text-base font-semibold text-white bg-gradient-to-r from-indigo-500 to-pink-500 rounded-lg self-center transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_30px_rgba(99,102,241,0.4)] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Empezar a practicar →
         </button>
       </div>
+
+      {isLoading && (
+        <div className="fixed inset-0 bg-[#0f0f19]/90 backdrop-blur-[20px] flex items-center justify-center z-[1000] animate-[fadeIn_0.5s_ease-out]">
+          <div className="flex flex-col items-center gap-10 max-w-[400px] text-center">
+            <div className="relative w-[120px] h-[120px]">
+              <div className="absolute bottom-0 w-full h-[60px] bg-gradient-to-b from-indigo-500 to-indigo-600 rounded-[50%] shadow-[0_10px_0_#3730a3,0_20px_30px_rgba(99,102,241,0.4)] animate-drum-bounce"></div>
+              <div className="absolute w-1.5 h-20 bg-white rounded-[3px] origin-bottom left-[30px] top-0 -rotate-[30deg] animate-left-stick"></div>
+              <div className="absolute w-1.5 h-20 bg-white rounded-[3px] origin-bottom right-[30px] top-0 rotate-[30deg] animate-right-stick"></div>
+            </div>
+            <div className="loading-text">
+              <h2 className="text-[28px] m-0 mb-3 bg-gradient-to-br from-white to-indigo-300 bg-clip-text text-transparent font-bold">
+                Analizando tu música
+              </h2>
+              <p className="text-[#94a3b8] text-base mb-6">{loadingMessages[loadingStep]}</p>
+              <div className="w-full h-1.5 bg-white/5 rounded-[3px] overflow-hidden relative">
+                <div className="w-[40%] h-full bg-gradient-to-r from-transparent via-indigo-500 to-pink-500 absolute -left-[40%] animate-progress-move"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

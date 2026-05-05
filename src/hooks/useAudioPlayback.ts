@@ -7,7 +7,7 @@ export function useAudioPlayback(audioBuffer: AudioBuffer | null) {
   const [duration, setDuration] = useState(0);
 
   const audioContextRef = useRef<AudioContext | null>(null);
-  const sourceRef = useRef<AudioBufferSource | null>(null);
+  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
   const startTimeRef = useRef<number>(0);
   const pausedTimeRef = useRef<number>(0);
   const animationFrameRef = useRef<number | null>(null);
@@ -127,6 +127,15 @@ export function useAudioPlayback(audioBuffer: AudioBuffer | null) {
     }
   }, []);
 
+  // Reads live audio time without going through React state — use this for canvas RAF loops
+  const getCurrentTime = useCallback((): number => {
+    if (!isPlayingRef.current || !audioContextRef.current) {
+      return pausedTimeRef.current;
+    }
+    const elapsed = (audioContextRef.current.currentTime - startTimeRef.current) * 1000 * speedRef.current;
+    return Math.min(pausedTimeRef.current + elapsed, duration);
+  }, [duration]);
+
   useEffect(() => {
     return () => {
       if (animationFrameRef.current) {
@@ -145,5 +154,6 @@ export function useAudioPlayback(audioBuffer: AudioBuffer | null) {
     stop,
     seek,
     changeSpeed,
+    getCurrentTime,
   };
 }
