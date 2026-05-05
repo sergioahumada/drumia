@@ -2,6 +2,7 @@ import { useRef, useEffect } from "react";
 import * as PIXI from "pixi.js";
 import {
   DrumScore as DrumScoreType,
+  Note,
   DRUM_LINES,
   getColorByType,
 } from "../../services/scoreGenerator";
@@ -11,12 +12,19 @@ interface DrumScoreProps {
   getCurrentTime: () => number;
   bpm: number;
   focusSection?: { startMs: number; endMs: number } | null;
+  cleanMode?: boolean;
 }
 
 const PPS = 100; // pixels per second
 const LINE_HEIGHT = 28;
 
-export function DrumScore({ score, getCurrentTime, bpm, focusSection }: DrumScoreProps) {
+export function DrumScore({
+  score,
+  getCurrentTime,
+  bpm,
+  focusSection,
+  cleanMode = false,
+}: DrumScoreProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<PIXI.Application | null>(null);
 
@@ -91,14 +99,27 @@ export function DrumScore({ score, getCurrentTime, bpm, focusSection }: DrumScor
         const notesGraphics = new PIXI.Graphics();
         scoreContainer.addChild(notesGraphics);
 
-        score.measures.forEach((m) =>
+        // --- Filtering Logic ---
+        const MIN_DISTANCE_MS = 80;
+        const processedNotes: Note[] = [];
+
+        score.measures.forEach((m) => {
           m.notes.forEach((note) => {
+            if (cleanMode) {
+              const isOverlapping = processedNotes.some(
+                (p: { type: string; time: number }) =>
+                  p.type === note.type && Math.abs(p.time - note.time) < MIN_DISTANCE_MS,
+              );
+              if (isOverlapping) return;
+            }
+            processedNotes.push(note);
+
             const x = (note.time / 1000) * PPS;
             const y = 30 + note.position * LINE_HEIGHT + LINE_HEIGHT / 2;
             const color = PIXI.Color.shared.setValue(getColorByType(note.type)).toNumber();
             notesGraphics.beginFill(color, 0.3).drawCircle(x, y, 4).endFill();
-          }),
-        );
+          });
+        });
 
         const activeNotesGraphics = new PIXI.Graphics();
         app.stage.addChild(activeNotesGraphics);
@@ -177,7 +198,7 @@ export function DrumScore({ score, getCurrentTime, bpm, focusSection }: DrumScor
         appRef.current = null;
       }
     };
-  }, [score, bpm, focusSection]);
+  }, [score, bpm, focusSection, cleanMode]);
 
   return (
     <div className="flex flex-col bg-[#1f1f2e] rounded-lg overflow-hidden my-5 border border-gray-800 h-[300px]">
@@ -204,7 +225,22 @@ export function DrumScore({ score, getCurrentTime, bpm, focusSection }: DrumScor
         </div>
       </div>
 
-      <div className="p-2 bg-[#2a2a3e] border-t border-gray-700 text-[11px] text-gray-500 text-center flex justify-between px-6"></div>
+      <div className="p-2 bg-[#2a2a3e] border-t border-gray-700 text-[11px] text-gray-500 text-center flex justify-between px-6">
+        <span className="opacity-50 uppercase tracking-widest font-bold">
+          GPU Accelerated Renderer
+        </span>
+        <div className="flex items-center gap-4">
+          <span className="text-gray-400 font-medium uppercase tracking-tighter">
+            Modo Correctivo
+          </span>
+          <div className="w-8 h-4 bg-gray-700 rounded-full relative">
+            <div
+              className={`absolute top-0.5 w-3 h-3 rounded-full transition-all ${cleanMode ? "right-0.5 bg-indigo-500" : "left-0.5 bg-gray-500"}`}
+            />
+          </div>
+          <span className="ml-4">{PPS}px/sec</span>
+        </div>
+      </div>
     </div>
   );
 }

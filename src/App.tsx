@@ -24,6 +24,7 @@ function App() {
   const [songFileName, setSongFileName] = useState<string>("");
   const [focusSection, setFocusSection] = useState<{ startMs: number; endMs: number } | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [cleanMode, setCleanMode] = useState(false);
 
   // Usar el buffer de la canción si existe, sino la batería
   const playbackBuffer = songBuffer || drumBuffer;
@@ -105,12 +106,24 @@ function App() {
             </span>
           </div>
         </div>
-        <button
-          className="px-4 py-2 bg-primary/10 text-primary border border-primary rounded-lg hover:bg-primary hover:text-white transition-all text-sm font-medium"
-          onClick={handleReset}
-        >
-          Nueva canción
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all text-xs font-bold ${
+              cleanMode 
+                ? 'bg-indigo-500/20 border-indigo-500 text-indigo-400' 
+                : 'bg-gray-800/40 border-gray-700 text-gray-400'
+            }`}
+            onClick={() => setCleanMode(!cleanMode)}
+          >
+            {cleanMode ? '✨ MODO CORRECTIVO ON' : '🧹 MODO CORRECTIVO OFF'}
+          </button>
+          <button
+            className="px-4 py-2 bg-primary/10 text-primary border border-primary rounded-lg hover:bg-primary hover:text-white transition-all text-sm font-medium"
+            onClick={handleReset}
+          >
+            Nueva canción
+          </button>
+        </div>
       </header>
 
       <main className="flex-1 flex items-center justify-center p-4 sm:p-6">
@@ -126,6 +139,7 @@ function App() {
             getCurrentTime={audioPlayback.getCurrentTime}
             bpm={analysis.bpm}
             focusSection={focusSection}
+            cleanMode={cleanMode}
           />
 
           <Player
