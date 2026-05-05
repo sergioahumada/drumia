@@ -147,20 +147,22 @@ export function DrumScore({ score, currentTime, bpm }: DrumScoreProps) {
 
   return (
     <div className="drum-score-wrapper">
-      <div className="drum-score-labels">
-        {DRUM_LINES.map((line) => (
-          <div key={line.type} className="drum-label" style={{ height: LINE_HEIGHT }}>
-            <div
-              className="label-dot"
-              style={{ backgroundColor: line.color }}
-            />
-            <span>{line.label}</span>
-          </div>
-        ))}
-      </div>
+      <div className="drum-score-inner">
+        <div className="drum-score-labels">
+          {DRUM_LINES.map((line) => (
+            <div key={line.type} className="drum-label" style={{ height: LINE_HEIGHT }}>
+              <div
+                className="label-dot"
+                style={{ backgroundColor: line.color }}
+              />
+              <span>{line.label}</span>
+            </div>
+          ))}
+        </div>
 
-      <div className="drum-score-container" ref={containerRef}>
-        <canvas ref={canvasRef} className="score-canvas" />
+        <div className="drum-score-container" ref={containerRef}>
+          <canvas ref={canvasRef} className="score-canvas" />
+        </div>
       </div>
 
       <div className="zoom-info">

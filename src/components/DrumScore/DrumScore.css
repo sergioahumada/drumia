@@ -1,7 +1,6 @@
 .drum-score-wrapper {
-  display: grid;
-  grid-template-columns: 120px 1fr;
-  grid-template-rows: 1fr auto;
+  display: flex;
+  flex-direction: column;
   background: #1f1f2e;
   border-radius: 8px;
   overflow: hidden;
@@ -10,50 +9,65 @@
   height: 300px;
 }
 
+.drum-score-inner {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
 .drum-score-labels {
-  grid-column: 1;
-  grid-row: 1;
   display: flex;
   flex-direction: column;
-  background: #2a2a3e;
-  border-right: 2px solid #444;
+  background: linear-gradient(135deg, #2a2a3e 0%, #35354f 100%);
+  border-right: 3px solid #6366f1;
+  width: 140px;
+  flex-shrink: 0;
   overflow-y: auto;
   z-index: 20;
-  position: sticky;
-  left: 0;
+  padding: 5px 0;
 }
 
 .drum-label {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 8px;
-  border-bottom: 1px solid #333;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 0 10px;
+  border-bottom: 1px solid #444;
   font-size: 12px;
   font-weight: 600;
-  color: #ccc;
+  color: #e0e0e0;
   height: 28px;
   white-space: nowrap;
   flex-shrink: 0;
-  background: #2a2a3e;
+  background: transparent;
+  transition: all 0.2s ease;
+  position: relative;
 }
 
 .drum-label:hover {
-  background: #35354f;
+  background: rgba(99, 102, 241, 0.15);
+  color: #6366f1;
+  padding-left: 12px;
 }
 
 .label-dot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
-  box-shadow: 0 0 4px currentColor;
-  opacity: 0.8;
+  box-shadow: 0 0 6px currentColor;
+  opacity: 0.9;
+  transition: all 0.2s ease;
+}
+
+.drum-label:hover .label-dot {
+  box-shadow: 0 0 12px currentColor;
+  transform: scale(1.2);
 }
 
 .drum-score-container {
-  grid-column: 2;
-  grid-row: 1;
+  flex: 1;
   display: flex;
   overflow-x: auto;
   overflow-y: hidden;
@@ -86,8 +100,6 @@
 }
 
 .zoom-info {
-  grid-column: 1 / -1;
-  grid-row: 2;
   padding: 8px 12px;
   background: #2a2a3e;
   border-top: 1px solid #444;
@@ -96,7 +108,7 @@
   text-align: center;
 }
 
-/* Scrollbar para los labels también */
+/* Scrollbar para los labels */
 .drum-score-labels::-webkit-scrollbar {
   width: 4px;
 }
@@ -112,18 +124,23 @@
 
 @media (max-width: 768px) {
   .drum-score-wrapper {
-    grid-template-columns: 100px 1fr;
     height: 280px;
   }
 
+  .drum-score-labels {
+    width: 110px;
+    border-right: 2px solid #6366f1;
+  }
+
   .drum-label {
-    padding: 0 4px;
-    font-size: 10px;
+    padding: 0 8px;
+    font-size: 11px;
     height: 26px;
+    gap: 6px;
   }
 
   .label-dot {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
   }
 }
