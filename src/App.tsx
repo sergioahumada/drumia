@@ -25,6 +25,7 @@ function App() {
   const [focusSection, setFocusSection] = useState<{ startMs: number; endMs: number } | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [cleanMode, setCleanMode] = useState(false);
+  const [minDistance, setMinDistance] = useState(180);
 
   // Usar el buffer de la canción si existe, sino la batería
   const playbackBuffer = songBuffer || drumBuffer;
@@ -107,15 +108,31 @@ function App() {
           </div>
         </div>
         <div className="flex items-center gap-4">
+          {cleanMode && (
+            <div className="flex items-center gap-3 bg-bg-dark/50 px-3 py-1.5 rounded-lg border border-gray-800">
+              <span className="text-[10px] text-gray-500 font-bold uppercase whitespace-nowrap">
+                Margen: {minDistance}ms
+              </span>
+              <input
+                type="range"
+                min="0"
+                max="500"
+                step="10"
+                value={minDistance}
+                onChange={(e) => setMinDistance(parseInt(e.target.value))}
+                className="w-24 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary"
+              />
+            </div>
+          )}
           <button
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all text-xs font-bold ${
-              cleanMode 
-                ? 'bg-indigo-500/20 border-indigo-500 text-indigo-400' 
-                : 'bg-gray-800/40 border-gray-700 text-gray-400'
+              cleanMode
+                ? "bg-primary/20 border-primary text-primary"
+                : "bg-gray-800/40 border-gray-700 text-gray-400"
             }`}
             onClick={() => setCleanMode(!cleanMode)}
           >
-            {cleanMode ? '✨ MODO CORRECTIVO ON' : '🧹 MODO CORRECTIVO OFF'}
+            {cleanMode ? "✨ MODO CORRECTIVO ON" : "🧹 MODO CORRECTIVO OFF"}
           </button>
           <button
             className="px-4 py-2 bg-primary/10 text-primary border border-primary rounded-lg hover:bg-primary hover:text-white transition-all text-sm font-medium"
@@ -140,6 +157,7 @@ function App() {
             bpm={analysis.bpm}
             focusSection={focusSection}
             cleanMode={cleanMode}
+            minDistance={minDistance}
           />
 
           <Player

@@ -13,6 +13,7 @@ interface DrumScoreProps {
   bpm: number;
   focusSection?: { startMs: number; endMs: number } | null;
   cleanMode?: boolean;
+  minDistance?: number;
 }
 
 const PPS = 120; // Aumentamos velocidad de scroll visual
@@ -24,6 +25,7 @@ export function DrumScore({
   bpm,
   focusSection,
   cleanMode = false,
+  minDistance = 150,
 }: DrumScoreProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<PIXI.Application | null>(null);
@@ -42,7 +44,7 @@ export function DrumScore({
         await app.init({
           width: containerRef.current.clientWidth,
           height: 500,
-          backgroundColor: 0x1f1f2e,
+          backgroundColor: 0x1a1a2e,
           antialias: true,
           resolution: window.devicePixelRatio || 1,
           autoDensity: true,
@@ -64,7 +66,7 @@ export function DrumScore({
 
         const totalWidth = (score.duration / 1000) * PPS;
 
-        gridGraphics.setStrokeStyle({ width: 1, color: 0x2a2a3e });
+        gridGraphics.setStrokeStyle({ width: 1, color: 0x24243e });
         DRUM_LINES.forEach((_, i) => {
           const y = 30 + i * LINE_HEIGHT;
           gridGraphics.moveTo(0, y).lineTo(totalWidth, y);
@@ -83,10 +85,10 @@ export function DrumScore({
           const ex = (focusSection.endMs / 1000) * PPS;
           const focusBg = new PIXI.Graphics();
           focusBg
-            .beginFill(0x6366f1, 0.07)
+            .beginFill(0x8b5cf6, 0.07)
             .drawRect(sx, 0, ex - sx, totalHeight)
             .endFill();
-          focusBg.setStrokeStyle({ width: 2, color: 0x6366f1, alpha: 0.5 });
+          focusBg.setStrokeStyle({ width: 2, color: 0x8b5cf6, alpha: 0.5 });
           focusBg
             .moveTo(sx, 0)
             .lineTo(sx, totalHeight)
@@ -99,8 +101,6 @@ export function DrumScore({
         const notesGraphics = new PIXI.Graphics();
         scoreContainer.addChild(notesGraphics);
 
-        // --- Filtering Logic ---
-        const MIN_DISTANCE_MS = 300;
         const processedNotes: Note[] = [];
 
         score.measures.forEach((m) => {
@@ -108,7 +108,7 @@ export function DrumScore({
             if (cleanMode) {
               const isOverlapping = processedNotes.some(
                 (p: { type: string; time: number }) =>
-                  p.type === note.type && Math.abs(p.time - note.time) < MIN_DISTANCE_MS,
+                  p.type === note.type && Math.abs(p.time - note.time) < minDistance,
               );
               if (isOverlapping) return;
             }
@@ -126,7 +126,7 @@ export function DrumScore({
 
         const cursor = new PIXI.Graphics();
         cursor
-          .beginFill(0x6366f1)
+          .beginFill(0x06b6d4)
           .drawRect(-1.5, 0, 3, totalHeight)
           .drawRect(-4, 5, 8, 15)
           .endFill();
@@ -145,28 +145,26 @@ export function DrumScore({
           activeNotesGraphics.clear();
           activeNotesGraphics.x = scoreContainer.x;
 
-          score.measures.forEach((m) =>
-            m.notes.forEach((note) => {
-              const diff = Math.abs(note.time - t);
-              if (diff < 150) {
-                const nx = (note.time / 1000) * PPS;
-                const ny = 30 + note.position * LINE_HEIGHT + LINE_HEIGHT / 2;
-                const color = PIXI.Color.shared.setValue(getColorByType(note.type)).toNumber();
-                const alpha = 1 - diff / 150;
+          processedNotes.forEach((note) => {
+            const diff = Math.abs(note.time - t);
+            if (diff < 150) {
+              const nx = (note.time / 1000) * PPS;
+              const ny = 30 + note.position * LINE_HEIGHT + LINE_HEIGHT / 2;
+              const color = PIXI.Color.shared.setValue(getColorByType(note.type)).toNumber();
+              const alpha = 1 - diff / 150;
 
-                activeNotesGraphics
-                  .beginFill(color, 0.2 * alpha)
-                  .drawCircle(nx, ny, 22)
-                  .endFill();
-                activeNotesGraphics
-                  .setStrokeStyle({ width: 2.5, color: 0xffffff, alpha: alpha })
-                  .beginFill(color, alpha)
-                  .drawCircle(nx, ny, 12)
-                  .endFill()
-                  .stroke();
-              }
-            }),
-          );
+              activeNotesGraphics
+                .beginFill(color, 0.2 * alpha)
+                .drawCircle(nx, ny, 22)
+                .endFill();
+              activeNotesGraphics
+                .setStrokeStyle({ width: 2.5, color: 0xffffff, alpha: alpha })
+                .beginFill(color, alpha)
+                .drawCircle(nx, ny, 12)
+                .endFill()
+                .stroke();
+            }
+          });
         });
 
         // Handle Manual Resize
@@ -198,13 +196,13 @@ export function DrumScore({
         appRef.current = null;
       }
     };
-  }, [score, bpm, focusSection, cleanMode]);
+  }, [score, bpm, focusSection, cleanMode, minDistance]);
 
   return (
-    <div className="flex flex-col bg-[#1f1f2e] rounded-xl overflow-hidden my-6 border border-gray-800 h-[500px] shadow-2xl">
+    <div className="flex flex-col bg-bg-dark rounded-xl overflow-hidden my-6 border border-gray-800 h-[500px] shadow-2xl">
       <div className="flex flex-1 overflow-hidden">
         {/* Fixed labels */}
-        <div className="flex flex-col bg-gradient-to-br from-[#2a2a3e] to-[#35354f] border-r-[3px] border-indigo-500 w-[110px] sm:w-[140px] shrink-0 overflow-y-auto z-20 pt-7.5 pb-1 sm:pt-[30px] sm:pb-[5px]">
+        <div className="flex flex-col bg-gradient-to-br from-bg-dark to-[#24243e] border-r-[3px] border-primary w-[110px] sm:w-[140px] shrink-0 overflow-y-auto z-20 pt-7.5 pb-1 sm:pt-[30px] sm:pb-[5px]">
           {DRUM_LINES.map((line) => (
             <div
               key={line.type}
@@ -220,7 +218,7 @@ export function DrumScore({
         </div>
 
         {/* WebGL Viewport */}
-        <div className="flex-1 relative overflow-hidden bg-[#1f1f2e]" ref={containerRef}>
+        <div className="flex-1 relative overflow-hidden bg-bg-dark" ref={containerRef}>
           {/* PixiJS will inject the canvas here */}
         </div>
       </div>

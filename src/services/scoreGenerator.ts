@@ -23,14 +23,14 @@ export interface Note {
 }
 
 export const DRUM_LINES = [
-  { position: 0, type: 'ride', label: 'Ride', color: '#ffd93d' },
-  { position: 1, type: 'crash', label: 'Crash', color: '#ffab40' },
-  { position: 2, type: 'hat', label: 'Hi-hat', color: '#fbc02d' },
-  { position: 3, type: 'tom1', label: 'Tom 1', color: '#a8dadc' },
-  { position: 4, type: 'tom2', label: 'Tom 2', color: '#81c3d7' },
-  { position: 5, type: 'tom3', label: 'Tom 3', color: '#4db8e8' },
-  { position: 6, type: 'snare', label: 'Snare', color: '#4ecdc4' },
-  { position: 7, type: 'kick', label: 'Kick', color: '#ff6b6b' },
+  { position: 0, type: 'ride', label: 'Ride', color: '#fbbf24' },   // Ámbar neón
+  { position: 1, type: 'crash', label: 'Crash', color: '#f59e0b' },  // Naranja neón
+  { position: 2, type: 'hat', label: 'Hi-hat', color: '#fcd34d' },  // Oro neón
+  { position: 3, type: 'tom1', label: 'Tom 1', color: '#22d3ee' },   // Cian neón
+  { position: 4, type: 'tom2', label: 'Tom 2', color: '#0ea5e9' },   // Azul neón
+  { position: 5, type: 'tom3', label: 'Tom 3', color: '#2563eb' },   // Royal neón
+  { position: 6, type: 'snare', label: 'Snare', color: '#a855f7' },  // Púrpura neón
+  { position: 7, type: 'kick', label: 'Kick', color: '#f43f5e' },   // Rosa/Rojo neón
 ];
 
 export function generateScore(analysis: AnalysisResult): DrumScore {

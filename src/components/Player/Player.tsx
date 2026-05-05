@@ -37,9 +37,9 @@ export function Player({
           max={duration}
           value={currentTime}
           onChange={(e) => onSeek(parseFloat(e.target.value))}
-          className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+          className="w-full h-1.5 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-primary"
         />
-        <div className="flex justify-between text-xs text-gray-500">
+        <div className="flex justify-between text-xs text-gray-400">
           <span>{formatTime(currentTime)}</span>
           <span>{formatTime(duration)}</span>
         </div>
@@ -47,18 +47,18 @@ export function Player({
 
       <div className="flex items-center gap-4">
         <button
-          className="px-4 py-2 text-xl bg-indigo-500 text-white rounded-lg transition-all hover:bg-indigo-600 hover:scale-105"
+          className="px-6 py-2.5 text-xl bg-primary text-white rounded-lg transition-all hover:opacity-90 hover:scale-105 shadow-lg shadow-primary/20"
           onClick={isPlaying ? onPauseClick : onPlayClick}
         >
           {isPlaying ? "⏸" : "▶"}
         </button>
 
-        <div className="flex items-center gap-2 text-sm text-gray-300">
-          <label>Velocidad:</label>
+        <div className="flex items-center gap-3 text-sm text-gray-300 font-medium">
+          <label className="text-gray-500 uppercase text-[10px] tracking-wider">Velocidad</label>
           <select
             value={speed}
             onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
-            className="px-2.5 py-1.5 bg-[#2a2a3e] text-white border border-gray-700 rounded cursor-pointer outline-none focus:border-indigo-500"
+            className="px-3 py-1.5 bg-bg-dark text-white border border-gray-800 rounded-lg cursor-pointer outline-none focus:border-primary transition-all"
           >
             <option value={0.5}>0.5x</option>
             <option value={0.75}>0.75x</option>

@@ -120,13 +120,13 @@ export function AudioUploader({
   };
 
   return (
-    <div className="w-full min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1f1f2e] to-[#2a2a3e] p-5">
-      <div className="w-full max-w-[700px] p-6 sm:p-10 rounded-2xl bg-[#1f1f2e]/80 backdrop-blur-md border border-indigo-500/20 flex flex-col gap-8">
+    <div className="w-full min-h-screen flex items-center justify-center bg-bg-darker p-5">
+      <div className="w-full max-w-[700px] p-6 sm:p-10 rounded-2xl bg-bg-dark/80 backdrop-blur-md border border-primary/20 flex flex-col gap-8">
         <div className="text-center flex flex-col items-center gap-4">
           <img
             src="/logo.png"
             alt="Drumia Logo"
-            className="w-[100px] rounded-lg h-[100px] sm:w-[120px] sm:h-[120px] object-contain drop-shadow-[0_0_20px_rgba(99,102,241,0.4)] animate-logo-pulse"
+            className="w-[100px] rounded-lg h-[100px] sm:w-[120px] sm:h-[120px] object-contain drop-shadow-[0_0_25px_rgba(139,92,246,0.5)] animate-logo-pulse"
           />
           <p className="text-gray-400 text-base sm:text-lg">Aprende a tocar batería</p>
         </div>
@@ -134,7 +134,7 @@ export function AudioUploader({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div
             className={`p-6 border-2 border-dashed rounded-xl text-center transition-all bg-white/5 cursor-pointer flex flex-col gap-4 items-center justify-center min-h-[160px] sm:min-h-[200px] ${
-              dragActive ? "border-indigo-500 bg-indigo-500/10 scale-[1.02]" : "border-gray-600"
+              dragActive ? "border-primary bg-primary/10 scale-[1.02]" : "border-gray-700"
             }`}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
@@ -162,7 +162,7 @@ export function AudioUploader({
                 <button
                   onClick={() => drumInputRef.current?.click()}
                   disabled={isLoading || isDecoding}
-                  className="px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-indigo-500 to-pink-500 rounded-lg transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(99,102,241,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-primary to-secondary rounded-lg transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(139,92,246,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isDecoding ? "Decodificando..." : "Selecciona batería"}
                 </button>
@@ -193,7 +193,7 @@ export function AudioUploader({
                 <button
                   onClick={() => songInputRef.current?.click()}
                   disabled={isLoading || isDecoding}
-                  className="px-5 py-2.5 text-sm font-semibold text-indigo-500 bg-indigo-500/20 rounded-lg transition-all hover:bg-indigo-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-5 py-2.5 text-sm font-semibold text-primary bg-primary/20 rounded-lg transition-all hover:bg-primary/30 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isDecoding ? "Decodificando..." : "Selecciona canción"}
                 </button>
@@ -216,7 +216,7 @@ export function AudioUploader({
         <button
           onClick={handleStart}
           disabled={!files.drumBuffer || isLoading}
-          className="px-7 py-3.5 text-base font-semibold text-white bg-gradient-to-r from-indigo-500 to-pink-500 rounded-lg self-center transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_30px_rgba(99,102,241,0.4)] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-7 py-3.5 text-base font-semibold text-white bg-gradient-to-r from-primary to-secondary rounded-lg self-center transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_30px_rgba(139,92,246,0.4)] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Empezar a practicar →
         </button>
@@ -226,17 +226,17 @@ export function AudioUploader({
         <div className="fixed inset-0 bg-[#0f0f19]/90 backdrop-blur-[20px] flex items-center justify-center z-[1000] animate-[fadeIn_0.5s_ease-out]">
           <div className="flex flex-col items-center gap-10 max-w-[400px] text-center">
             <div className="relative w-[120px] h-[120px]">
-              <div className="absolute bottom-0 w-full h-[60px] bg-gradient-to-b from-indigo-500 to-indigo-600 rounded-[50%] shadow-[0_10px_0_#3730a3,0_20px_30px_rgba(99,102,241,0.4)] animate-drum-bounce"></div>
+              <div className="absolute bottom-0 w-full h-[60px] bg-gradient-to-b from-primary to-indigo-900 rounded-[50%] shadow-[0_10px_0_#4c1d95,0_20px_30px_rgba(139,92,246,0.4)] animate-drum-bounce"></div>
               <div className="absolute w-1.5 h-20 bg-white rounded-[3px] origin-bottom left-[30px] top-0 -rotate-[30deg] animate-left-stick"></div>
               <div className="absolute w-1.5 h-20 bg-white rounded-[3px] origin-bottom right-[30px] top-0 rotate-[30deg] animate-right-stick"></div>
             </div>
             <div className="loading-text">
-              <h2 className="text-[28px] m-0 mb-3 bg-gradient-to-br from-white to-indigo-300 bg-clip-text text-transparent font-bold">
+              <h2 className="text-[28px] m-0 mb-3 bg-gradient-to-br from-white to-primary bg-clip-text text-transparent font-bold">
                 Analizando tu música
               </h2>
-              <p className="text-[#94a3b8] text-base mb-6">{loadingMessages[loadingStep]}</p>
-              <div className="w-full h-1.5 bg-white/5 rounded-[3px] overflow-hidden relative">
-                <div className="w-[40%] h-full bg-gradient-to-r from-transparent via-indigo-500 to-pink-500 absolute -left-[40%] animate-progress-move"></div>
+              <p className="text-gray-400 text-base mb-6">{loadingMessages[loadingStep]}</p>
+              <div className="w-full h-1.5 bg-white/5 rounded-[3px] overflow-hidden relative border border-white/5">
+                <div className="w-[40%] h-full bg-gradient-to-r from-transparent via-primary to-secondary absolute -left-[40%] animate-progress-move"></div>
               </div>
             </div>
           </div>

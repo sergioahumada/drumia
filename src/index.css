@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #6366f1;
-  --color-secondary: #ec4899;
-  --color-bg-dark: #1f1f2e;
-  --color-bg-darker: #16161e;
+  --color-primary: #8b5cf6; /* Violeta vibrante */
+  --color-secondary: #06b6d4; /* Cian eléctrico */
+  --color-bg-dark: #1a1a2e;
+  --color-bg-darker: #0f0f1a;
 
   --animate-logo-pulse: logoPulse 4s infinite ease-in-out;
   --animate-drum-bounce: drumBounce 0.4s infinite alternate ease-in-out;
