@@ -119,6 +119,36 @@
   padding: 20px;
   margin: 20px 0;
   border: 1px solid #333;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.auto-analysis-section {
+  padding: 16px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 6px;
+}
+
+.auto-analysis-section h4 {
+  margin: 0 0 12px 0;
+  color: #6366f1;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.manual-analysis-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.manual-analysis-section h4 {
+  margin: 0;
+  color: #ccc;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .gemini-header {
@@ -128,10 +158,38 @@
   margin-bottom: 20px;
 }
 
+.header-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .gemini-header h3 {
   margin: 0;
   color: #6366f1;
   font-size: 18px;
+}
+
+.analyzing-indicator {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background: rgba(99, 102, 241, 0.2);
+  color: #6366f1;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 .disconnect-btn {

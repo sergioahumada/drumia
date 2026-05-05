@@ -117,7 +117,7 @@ Responde en español, de forma concisa y práctica.
  */
 export async function generateDrumPattern(
   bpm: number,
-  complexity: 'basic' | 'intermediate' | 'advanced',
+  complexity: 'easy' | 'medium' | 'hard',
   style: string = 'rock'
 ): Promise<string> {
   if (!geminiClient) {
