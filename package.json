@@ -9,6 +9,8 @@
     "lint": "eslint src --ext ts,tsx"
   },
   "dependencies": {
+    "@tensorflow/tfjs": "^4.22.0",
+    "@tensorflow/tfjs-backend-webgl": "^4.22.0",
     "essentia.js": "^0.1.0",
     "howler": "^2.2.4",
     "radix-ui": "^1.0.0",

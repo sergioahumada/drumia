@@ -1,16 +1,16 @@
 import { AnalysisResult } from '../types';
+import { DrumClassifier, extractAudioFeatures } from './drumClassifier';
 
-// Dynamic import de Essentia.js
-let essentia: any = null;
+let classifier: DrumClassifier | null = null;
 
-async function initEssentia() {
-  if (essentia) return essentia;
+async function initClassifier() {
+  if (classifier) return classifier;
   try {
-    const module = await import('essentia.js');
-    essentia = new module.Essentia(module.EssentiaWASM);
-    return essentia;
+    classifier = new DrumClassifier();
+    await classifier.initialize();
+    return classifier;
   } catch (error) {
-    console.warn('Essentia.js no disponible, usando análisis básico', error);
+    console.warn('TensorFlow classifier not available', error);
     return null;
   }
 }
@@ -20,23 +20,28 @@ export async function analyzeAudio(audioBuffer: AudioBuffer): Promise<AnalysisRe
   const duration = audioBuffer.duration * 1000;
   const channelData = audioBuffer.getChannelData(0);
 
-  const essLib = await initEssentia();
+  // Inicializar clasificador TensorFlow
+  const tfClassifier = await initClassifier();
 
   let bpm = 120;
   const timeSignature = '4/4';
   let events = [];
 
-  if (essLib) {
-    // Usar Essentia.js
-    try {
-      bpm = detectBPMWithEssentia(essLib, channelData, sampleRate);
-      events = detectOnsetsWithEssentia(essLib, channelData, sampleRate);
-    } catch (error) {
-      console.warn('Error con Essentia, usando fallback', error);
-      events = fallbackAnalysis(channelData, sampleRate, bpm);
+  try {
+    // Detectar BPM
+    bpm = detectBPM(channelData, sampleRate);
+
+    // Detectar onsets con mejor análisis espectral
+    const onsets = detectOnsets(channelData, sampleRate);
+
+    // Clasificar con TensorFlow si disponible, sino con heurística
+    if (tfClassifier) {
+      events = await classifyOnsetsWithTensorFlow(tfClassifier, channelData, sampleRate, onsets);
+    } else {
+      events = classifyOnsetsHeuristic(channelData, sampleRate, onsets);
     }
-  } else {
-    // Fallback sin Essentia
+  } catch (error) {
+    console.error('Analysis error:', error);
     events = fallbackAnalysis(channelData, sampleRate, bpm);
   }
 
@@ -48,194 +53,245 @@ export async function analyzeAudio(audioBuffer: AudioBuffer): Promise<AnalysisRe
   };
 }
 
-function detectBPMWithEssentia(essLib: any, channelData: Float32Array, sampleRate: number): number {
-  try {
-    // RhythmExtractor2013 es el mejor detector de BPM en Essentia
-    const result = essLib.RhythmExtractor2013({
-      signal: Array.from(channelData),
-    });
+function detectBPM(channelData: Float32Array, sampleRate: number): number {
+  // Análisis de energía por ventanas
+  const windowSize = Math.floor(sampleRate * 0.5); // 500ms
+  const energies: number[] = [];
 
-    return Math.round(result.bpm) || 120;
-  } catch (error) {
-    console.warn('BPM detection falló, usando default', error);
-    return 120;
+  for (let i = 0; i < channelData.length; i += windowSize) {
+    const window = channelData.slice(i, Math.min(i + windowSize, channelData.length));
+    let energy = 0;
+    for (let j = 0; j < window.length; j++) {
+      energy += window[j] * window[j];
+    }
+    energies.push(Math.sqrt(energy / window.length));
   }
+
+  // Buscar BPM
+  let bestBPM = 120;
+  let maxScore = 0;
+
+  for (let bpm = 60; bpm < 200; bpm += 2) {
+    const beatsPerWindow = (windowSize / sampleRate) * (bpm / 60);
+    let score = 0;
+
+    for (let i = 1; i < energies.length - 1; i++) {
+      const expectedBeatPos = Math.round(i / beatsPerWindow) * beatsPerWindow;
+      if (Math.abs(i - expectedBeatPos) < beatsPerWindow * 0.2) {
+        score += energies[i];
+      }
+    }
+
+    if (score > maxScore) {
+      maxScore = score;
+      bestBPM = bpm;
+    }
+  }
+
+  return Math.max(60, Math.min(200, bestBPM));
 }
 
-function detectOnsetsWithEssentia(
-  essLib: any,
+function detectOnsets(channelData: Float32Array, sampleRate: number): number[] {
+  const hopSize = Math.floor(sampleRate * 0.01); // 10ms
+  const onsets: number[] = [];
+  const energyEnvelope: number[] = [];
+
+  // Calcular envolvente de energía
+  for (let i = 0; i < channelData.length; i += hopSize) {
+    const window = channelData.slice(i, Math.min(i + hopSize, channelData.length));
+    let energy = 0;
+    for (let j = 0; j < window.length; j++) {
+      energy += window[j] * window[j];
+    }
+    energyEnvelope.push(Math.sqrt(energy / window.length));
+  }
+
+  // Detectar picos
+  const threshold = computeThreshold(energyEnvelope);
+
+  for (let i = 1; i < energyEnvelope.length - 1; i++) {
+    const derivative = energyEnvelope[i] - energyEnvelope[i - 1];
+
+    if (derivative > threshold && energyEnvelope[i] > 0.01) {
+      const timeSinceLastOnset =
+        (i - (onsets.length > 0 ? Math.floor(onsets[onsets.length - 1] / hopSize) : 0)) * hopSize;
+
+      if (timeSinceLastOnset > sampleRate * 0.03) {
+        // Mínimo 30ms entre onsets
+        onsets.push(i * hopSize);
+      }
+    }
+  }
+
+  return onsets;
+}
+
+async function classifyOnsetsWithTensorFlow(
+  tfClassifier: DrumClassifier,
   channelData: Float32Array,
-  sampleRate: number
-): Array<{
-  time: number;
-  type: 'kick' | 'snare' | 'hat' | 'tom1' | 'tom2' | 'tom3' | 'crash' | 'ride';
-  intensity: number;
-}> {
-  const events: Array<{
+  sampleRate: number,
+  onsetSamples: number[]
+): Promise<
+  Array<{
     time: number;
     type: 'kick' | 'snare' | 'hat' | 'tom1' | 'tom2' | 'tom3' | 'crash' | 'ride';
     intensity: number;
-  }> = [];
+  }>
+> {
+  const events = [];
+  const windowSize = 2048;
 
-  try {
-    const signal = Array.from(channelData);
+  for (const onsetSample of onsetSamples) {
+    const windowStart = Math.max(0, onsetSample - windowSize / 2);
+    const windowEnd = Math.min(channelData.length, onsetSample + windowSize / 2);
+    const window = channelData.slice(windowStart, windowEnd);
 
-    // OnsetDetection - detecta los momentos de golpes
-    const onsetResult = essLib.OnsetDetection({
-      signal,
-      method: 'energy',
+    // Extraer features
+    const features = extractAudioFeatures(window, sampleRate);
+
+    // Clasificar con TensorFlow
+    const type = await tfClassifier.classify(features);
+
+    // Calcular intensidad
+    let energy = 0;
+    for (let i = 0; i < window.length; i++) {
+      energy += window[i] * window[i];
+    }
+    energy = Math.sqrt(energy / window.length);
+
+    events.push({
+      time: (onsetSample / sampleRate) * 1000,
+      type,
+      intensity: Math.min(1, energy * 2),
     });
-
-    const onsetTimes: number[] = onsetResult.onsets || [];
-
-    // Para cada onset, extraer características espectrales
-    const hopSize = Math.floor(sampleRate * 0.01); // 10ms
-    const windowSize = 2048;
-
-    onsetTimes.forEach((onsetTime: number) => {
-      const sampleIdx = Math.floor(onsetTime * sampleRate);
-      const windowStart = Math.max(0, sampleIdx - windowSize / 2);
-      const windowEnd = Math.min(channelData.length, sampleIdx + windowSize / 2);
-      const window = Array.from(channelData.slice(windowStart, windowEnd));
-
-      // Calcular características
-      let features = {
-        spectralCentroid: 0,
-        energy: 0,
-        zeroCrossingRate: 0,
-      };
-
-      try {
-        // SpectralCentroid
-        const scResult = essLib.SpectralCentroid({
-          spectrum: window,
-        });
-        features.spectralCentroid = scResult.spectralCentroid || 0;
-
-        // Energy
-        const energyResult = essLib.Energy({
-          array: window,
-        });
-        features.energy = energyResult.energy || 0;
-
-        // ZeroCrossingRate
-        const zcrResult = essLib.ZeroCrossingRate({
-          signal: window,
-        });
-        features.zeroCrossingRate = zcrResult.zeroCrossingRate || 0;
-      } catch (e) {
-        // Calcular manualmente si Essentia falla
-        features = computeFeaturesManually(window, sampleRate);
-      }
-
-      const type = classifyDrumInstrument(features);
-      const intensity = Math.min(1, features.energy);
-
-      events.push({
-        time: onsetTime * 1000,
-        type,
-        intensity,
-      });
-    });
-  } catch (error) {
-    console.warn('Onset detection falló', error);
-    return fallbackAnalysis(channelData, sampleRate, 120);
   }
 
   return events;
 }
 
-function computeFeaturesManually(
-  window: number[],
-  sampleRate: number
-): { spectralCentroid: number; energy: number; zeroCrossingRate: number } {
-  let energy = 0;
-  for (let i = 0; i < window.length; i++) {
-    energy += window[i] * window[i];
-  }
-  energy = Math.sqrt(energy / window.length);
+function classifyOnsetsHeuristic(
+  channelData: Float32Array,
+  sampleRate: number,
+  onsetSamples: number[]
+): Array<{
+  time: number;
+  type: 'kick' | 'snare' | 'hat' | 'tom1' | 'tom2' | 'tom3' | 'crash' | 'ride';
+  intensity: number;
+}> {
+  const events = [];
+  const windowSize = 2048;
 
-  let zeroCrossings = 0;
-  for (let i = 1; i < window.length; i++) {
-    if ((window[i] > 0 && window[i - 1] < 0) || (window[i] < 0 && window[i - 1] > 0)) {
-      zeroCrossings++;
-    }
-  }
-  const zcr = zeroCrossings / window.length;
+  onsetSamples.forEach((onsetSample) => {
+    const windowStart = Math.max(0, onsetSample - windowSize / 2);
+    const windowEnd = Math.min(channelData.length, onsetSample + windowSize / 2);
+    const window = channelData.slice(windowStart, windowEnd);
 
-  // Estimar centroide espectral por zero-crossing rate
-  const sc = (zcr / window.length) * (sampleRate / 2);
+    const type = classifyBySpectralHeuristic(window, sampleRate);
+    const intensity = computeIntensity(window);
 
-  return {
-    spectralCentroid: sc,
-    energy,
-    zeroCrossingRate: zcr,
-  };
+    events.push({
+      time: (onsetSample / sampleRate) * 1000,
+      type,
+      intensity: Math.min(1, intensity * 1.5),
+    });
+  });
+
+  return events;
 }
 
-function classifyDrumInstrument(features: {
-  spectralCentroid: number;
-  energy: number;
-  zeroCrossingRate: number;
-}): 'kick' | 'snare' | 'hat' | 'tom1' | 'tom2' | 'tom3' | 'crash' | 'ride' {
-  const { spectralCentroid, zeroCrossingRate, energy } = features;
+function classifyBySpectralHeuristic(
+  window: Float32Array,
+  sampleRate: number
+): 'kick' | 'snare' | 'hat' | 'tom1' | 'tom2' | 'tom3' | 'crash' | 'ride' {
+  // Calcular características espectrales
+  const zcr = computeZeroCrossingRate(window);
+  const spectralCentroid = estimateSpectralCentroid(window, sampleRate);
+  const energy = computeIntensity(window);
 
-  // Normalizar valores
-  const sc = Math.max(0, Math.min(15000, spectralCentroid || 5000));
-  const zcr = Math.max(0, Math.min(1, zeroCrossingRate || 0.5));
-  const e = Math.max(0, Math.min(1, energy || 0.5));
+  // Normalizar
+  const sc = Math.max(0, Math.min(15000, spectralCentroid));
+  const normalizedZcr = Math.max(0, Math.min(1, zcr));
+  const e = Math.max(0, Math.min(1, energy));
 
-  // Clasificación basada en características:
-  // Kick: baja frecuencia + baja energía (ataque lento)
-  // Snare: media-alta frecuencia + energía media + alto ZCR
-  // Hat: alta frecuencia + energía media-baja + muy alto ZCR
-  // Crash: muy alta frecuencia + energía baja + muy alto ZCR
-  // Tom: frecuencia media + energía alta
-  // Ride: frecuencia media-alta + energía media + ZCR bajo
-
-  // Prioridad 1: Detectar Kick (frecuencia muy baja)
-  if (sc < 400) {
-    return 'kick';
+  // Heurística mejorada
+  if (sc < 300) {
+    return 'kick'; // Muy baja frecuencia
   }
 
-  // Prioridad 2: Detectar Crash (frecuencia muy alta + ZCR muy alto)
-  if (sc > 10000 && zcr > 0.6) {
-    return 'crash';
+  if (sc > 10000 && normalizedZcr > 0.5) {
+    return 'crash'; // Muy alta frecuencia + mucho contenido agudo
   }
 
-  // Prioridad 3: Detectar Hi-hat (frecuencia alta + ZCR alto + energía media)
-  if (sc > 7000 && zcr > 0.5 && e < 0.7) {
-    return 'hat';
+  if (sc > 8000 && normalizedZcr > 0.4) {
+    return 'hat'; // Alta frecuencia + contenido agudo
   }
 
-  // Prioridad 4: Detectar Snare (frecuencia media + energía + ZCR)
-  if (sc > 3000 && sc < 7000 && zcr > 0.4 && e > 0.4) {
-    return 'snare';
+  if (sc > 5500 && normalizedZcr < 0.3) {
+    return 'ride'; // Media-alta frecuencia + poco contenido agudo
   }
 
-  // Prioridad 5: Detectar Ride (frecuencia media-alta + ZCR bajo-medio)
-  if (sc > 5000 && sc < 8000 && zcr < 0.4) {
-    return 'ride';
+  if (sc > 3500 && normalizedZcr > 0.3 && e > 0.3) {
+    return 'snare'; // Media frecuencia + energía
   }
 
-  // Prioridad 6: Detectar Toms (frecuencia media + energía alta)
-  if (sc > 1500 && sc < 5000 && e > 0.5) {
-    // Clasificar por altura (espectrocentroid)
-    if (sc > 3500) {
-      return 'tom1'; // Tom agudo
-    } else if (sc > 2500) {
-      return 'tom2'; // Tom medio
-    } else {
-      return 'tom3'; // Tom grave
+  if (sc > 2000 && e > 0.4) {
+    // Toms - clasificar por centroide
+    if (sc > 3500) return 'tom1';
+    if (sc > 2500) return 'tom2';
+    return 'tom3';
+  }
+
+  if (normalizedZcr > 0.5) return 'hat';
+  if (e > 0.5) return 'tom2';
+
+  return 'hat';
+}
+
+function computeZeroCrossingRate(signal: Float32Array): number {
+  let crossings = 0;
+  for (let i = 1; i < signal.length; i++) {
+    if ((signal[i] > 0 && signal[i - 1] < 0) || (signal[i] < 0 && signal[i - 1] > 0)) {
+      crossings++;
+    }
+  }
+  return crossings / signal.length;
+}
+
+function estimateSpectralCentroid(signal: Float32Array, sampleRate: number): number {
+  // Estimar centroide usando autocorrelación simple
+  let maxLag = 0;
+  let maxCorr = 0;
+
+  const windowSize = Math.min(512, signal.length / 2);
+
+  for (let lag = 1; lag < windowSize; lag++) {
+    let corr = 0;
+    for (let i = 0; i < signal.length - lag; i++) {
+      corr += signal[i] * signal[i + lag];
+    }
+
+    if (corr > maxCorr) {
+      maxCorr = corr;
+      maxLag = lag;
     }
   }
 
-  // Fallback: por ZCR
-  if (zcr > 0.6) return 'hat';
-  if (zcr > 0.4) return 'snare';
-  if (e > 0.5) return 'tom2';
+  // Convertir lag a frecuencia (aproximado)
+  if (maxLag > 0) {
+    return (sampleRate / maxLag) * 0.5;
+  }
 
-  return 'hat'; // Default final
+  // Fallback: usar zero-crossing rate para estimar
+  const zcr = computeZeroCrossingRate(signal);
+  return zcr * (sampleRate / 2);
+}
+
+function computeIntensity(window: Float32Array): number {
+  let rms = 0;
+  for (let i = 0; i < window.length; i++) {
+    rms += window[i] * window[i];
+  }
+  return Math.sqrt(rms / window.length);
 }
 
 function fallbackAnalysis(
