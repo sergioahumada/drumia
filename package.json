@@ -9,6 +9,7 @@
     "lint": "eslint src --ext ts,tsx"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@tensorflow/tfjs": "^4.22.0",
     "@tensorflow/tfjs-backend-webgl": "^4.22.0",
     "essentia.js": "^0.1.0",

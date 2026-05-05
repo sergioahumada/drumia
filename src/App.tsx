@@ -3,11 +3,12 @@ import { AudioUploader } from './components/AudioUploader/AudioUploader';
 import { Player } from './components/Player/Player';
 import { DrumScore } from './components/DrumScore/DrumScore';
 import { MetronomeVisual } from './components/MetronomeVisual/MetronomeVisual';
+import { GeminiAnalysis } from './components/GeminiAnalysis/GeminiAnalysis';
 import { analyzeAudio } from './services/audioAnalyzer';
 import { generateScore } from './services/scoreGenerator';
 import { useAudioPlayback } from './hooks/useAudioPlayback';
 import { useLocalStorage } from './hooks/useLocalStorage';
-import { AnalysisResult } from './types';
+import { AnalysisResult, DrumEventType } from './types';
 import './App.css';
 
 interface AudioFiles {
@@ -110,6 +111,17 @@ function App() {
             onPauseClick={audioPlayback.pause}
             onSeek={audioPlayback.seek}
             onSpeedChange={audioPlayback.changeSpeed}
+          />
+
+          <GeminiAnalysis
+            events={analysis.events.map((e) => ({
+              time: e.time,
+              type: e.type as DrumEventType,
+              intensity: e.intensity,
+            }))}
+            bpm={analysis.bpm}
+            duration={audioPlayback.duration}
+            songName={songFileName}
           />
         </div>
       </main>
