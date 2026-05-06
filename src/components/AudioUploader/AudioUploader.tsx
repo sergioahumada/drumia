@@ -14,10 +14,10 @@ interface AudioUploaderProps {
   externalError?: string | null;
 }
 
-export function AudioUploader({ 
-  onAudioLoaded, 
-  isLoading = false, 
-  externalError = null 
+export function AudioUploader({
+  onAudioLoaded,
+  isLoading = false,
+  externalError = null,
 }: AudioUploaderProps) {
   const drumInputRef = useRef<HTMLInputElement>(null);
   const songInputRef = useRef<HTMLInputElement>(null);
@@ -35,7 +35,7 @@ export function AudioUploader({
   ];
 
   React.useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
     if (isLoading) {
       interval = setInterval(() => {
         setLoadingStep((prev) => (prev + 1) % loadingMessages.length);
@@ -162,7 +162,7 @@ export function AudioUploader({
                 <button
                   onClick={() => drumInputRef.current?.click()}
                   disabled={isLoading || isDecoding}
-                  className="px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-primary to-secondary rounded-lg transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(139,92,246,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-5 py-2.5 text-sm font-semibold text-white bg-linear-to-r from-primary to-secondary rounded-lg transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(139,92,246,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isDecoding ? "Decodificando..." : "Selecciona batería"}
                 </button>
@@ -216,27 +216,27 @@ export function AudioUploader({
         <button
           onClick={handleStart}
           disabled={!files.drumBuffer || isLoading}
-          className="px-7 py-3.5 text-base font-semibold text-white bg-gradient-to-r from-primary to-secondary rounded-lg self-center transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_30px_rgba(139,92,246,0.4)] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-7 py-3.5 text-base font-semibold text-white bg-linear-to-r from-primary to-secondary rounded-lg self-center transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_30px_rgba(139,92,246,0.4)] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Empezar a practicar →
         </button>
       </div>
 
       {isLoading && (
-        <div className="fixed inset-0 bg-[#0f0f19]/90 backdrop-blur-[20px] flex items-center justify-center z-[1000] animate-[fadeIn_0.5s_ease-out]">
+        <div className="fixed inset-0 bg-[#0f0f19]/90 backdrop-blur-[20px] flex items-center justify-center z-1000 animate-[fadeIn_0.5s_ease-out]">
           <div className="flex flex-col items-center gap-10 max-w-[400px] text-center">
             <div className="relative w-[120px] h-[120px]">
-              <div className="absolute bottom-0 w-full h-[60px] bg-gradient-to-b from-primary to-indigo-900 rounded-[50%] shadow-[0_10px_0_#4c1d95,0_20px_30px_rgba(139,92,246,0.4)] animate-drum-bounce"></div>
-              <div className="absolute w-1.5 h-20 bg-white rounded-[3px] origin-bottom left-[30px] top-0 -rotate-[30deg] animate-left-stick"></div>
-              <div className="absolute w-1.5 h-20 bg-white rounded-[3px] origin-bottom right-[30px] top-0 rotate-[30deg] animate-right-stick"></div>
+              <div className="absolute bottom-0 w-full h-[60px] bg-linear-to-b from-primary to-indigo-900 rounded-[50%] shadow-[0_10px_0_#4c1d95,0_20px_30px_rgba(139,92,246,0.4)] animate-drum-bounce"></div>
+              <div className="absolute w-1.5 h-20 bg-white rounded-[3px] origin-bottom left-[30px] top-0 rotate-[-30deg] animate-left-stick"></div>
+              <div className="absolute w-1.5 h-20 bg-white rounded-[3px] origin-bottom right-[30px] top-0 rotate-30deg animate-right-stick"></div>
             </div>
             <div className="loading-text">
-              <h2 className="text-[28px] m-0 mb-3 bg-gradient-to-br from-white to-primary bg-clip-text text-transparent font-bold">
+              <h2 className="text-[28px] m-0 mb-3 bg-linear-to-br from-white to-primary bg-clip-text text-transparent font-bold">
                 Analizando tu música
               </h2>
               <p className="text-gray-400 text-base mb-6">{loadingMessages[loadingStep]}</p>
               <div className="w-full h-1.5 bg-white/5 rounded-[3px] overflow-hidden relative border border-white/5">
-                <div className="w-[40%] h-full bg-gradient-to-r from-transparent via-primary to-secondary absolute -left-[40%] animate-progress-move"></div>
+                <div className="w-[40%] h-full bg-linear-to-r from-transparent via-primary to-secondary absolute left-[-40%] animate-progress-move"></div>
               </div>
             </div>
           </div>

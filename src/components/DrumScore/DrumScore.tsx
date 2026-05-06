@@ -202,7 +202,7 @@ export function DrumScore({
     <div className="flex flex-col bg-bg-dark rounded-xl overflow-hidden my-6 border border-gray-800 h-[500px] shadow-2xl">
       <div className="flex flex-1 overflow-hidden">
         {/* Fixed labels */}
-        <div className="flex flex-col bg-gradient-to-br from-bg-dark to-[#24243e] border-r-[3px] border-primary w-[110px] sm:w-[140px] shrink-0 overflow-y-auto z-20 pt-7.5 pb-1 sm:pt-[30px] sm:pb-[5px]">
+        <div className="flex flex-col bg-linear-to-br from-bg-dark to-[#24243e] border-r-[3px] border-primary w-[110px] sm:w-[140px] shrink-0 overflow-y-auto z-20 pt-7.5 pb-1 sm:pt-[30px] sm:pb-[5px]">
           {DRUM_LINES.map((line) => (
             <div
               key={line.type}
