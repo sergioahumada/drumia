@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { AudioUploader } from "./components/AudioUploader/AudioUploader";
 import { Player } from "./components/Player/Player";
 import { DrumScore } from "./components/DrumScore/DrumScore";
-import { MetronomeVisual } from "./components/MetronomeVisual/MetronomeVisual";
 import { analyzeAudio } from "./services/audioAnalyzer";
 import { generateScore } from "./services/scoreGenerator";
 import { useAudioPlayback } from "./hooks/useAudioPlayback";

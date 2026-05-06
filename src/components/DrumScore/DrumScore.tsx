@@ -66,35 +66,30 @@ export function DrumScore({
 
         const totalWidth = (score.duration / 1000) * PPS;
 
-        gridGraphics.setStrokeStyle({ width: 1, color: 0x24243e });
         DRUM_LINES.forEach((_, i) => {
           const y = 30 + i * LINE_HEIGHT;
           gridGraphics.moveTo(0, y).lineTo(totalWidth, y);
         });
+        gridGraphics.stroke({ width: 1, color: 0x24243e });
 
         const measurePx = (((60 / bpm) * 4 * 1000) / 1000) * PPS;
-        gridGraphics.setStrokeStyle({ width: 1, color: 0x333333 });
         for (let i = 0; i * measurePx < totalWidth; i++) {
           const x = i * measurePx;
           gridGraphics.moveTo(x, 0).lineTo(x, totalHeight);
         }
-        gridGraphics.stroke();
+        gridGraphics.stroke({ width: 1, color: 0x333333 });
 
         if (focusSection) {
           const sx = (focusSection.startMs / 1000) * PPS;
           const ex = (focusSection.endMs / 1000) * PPS;
           const focusBg = new PIXI.Graphics();
-          focusBg
-            .beginFill(0x8b5cf6, 0.07)
-            .drawRect(sx, 0, ex - sx, totalHeight)
-            .endFill();
-          focusBg.setStrokeStyle({ width: 2, color: 0x8b5cf6, alpha: 0.5 });
+          focusBg.rect(sx, 0, ex - sx, totalHeight).fill({ color: 0x8b5cf6, alpha: 0.07 });
           focusBg
             .moveTo(sx, 0)
             .lineTo(sx, totalHeight)
             .moveTo(ex, 0)
             .lineTo(ex, totalHeight)
-            .stroke();
+            .stroke({ width: 2, color: 0x8b5cf6, alpha: 0.5 });
           scoreContainer.addChild(focusBg);
         }
 
@@ -117,7 +112,7 @@ export function DrumScore({
             const x = (note.time / 1000) * PPS;
             const y = 30 + note.position * LINE_HEIGHT + LINE_HEIGHT / 2;
             const color = PIXI.Color.shared.setValue(getColorByType(note.type)).toNumber();
-            notesGraphics.beginFill(color, 0.4).drawCircle(x, y, 8).endFill();
+            notesGraphics.circle(x, y, 8).fill({ color, alpha: 0.4 });
           });
         });
 
@@ -126,10 +121,9 @@ export function DrumScore({
 
         const cursor = new PIXI.Graphics();
         cursor
-          .beginFill(0x06b6d4)
-          .drawRect(-1.5, 0, 3, totalHeight)
-          .drawRect(-4, 5, 8, 15)
-          .endFill();
+          .rect(-1.5, 0, 3, totalHeight)
+          .rect(-4, 5, 8, 15)
+          .fill(0x06b6d4);
         app.stage.addChild(cursor);
 
         app.ticker.add(() => {
@@ -153,16 +147,11 @@ export function DrumScore({
               const color = PIXI.Color.shared.setValue(getColorByType(note.type)).toNumber();
               const alpha = 1 - diff / 150;
 
+              activeNotesGraphics.circle(nx, ny, 22).fill({ color, alpha: 0.2 * alpha });
               activeNotesGraphics
-                .beginFill(color, 0.2 * alpha)
-                .drawCircle(nx, ny, 22)
-                .endFill();
-              activeNotesGraphics
-                .setStrokeStyle({ width: 2.5, color: 0xffffff, alpha: alpha })
-                .beginFill(color, alpha)
-                .drawCircle(nx, ny, 12)
-                .endFill()
-                .stroke();
+                .circle(nx, ny, 12)
+                .fill({ color, alpha: alpha })
+                .stroke({ width: 2.5, color: 0xffffff, alpha: alpha });
             }
           });
         });
