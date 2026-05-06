@@ -223,22 +223,7 @@ export function DrumScore({
         </div>
       </div>
 
-      <div className="p-2 bg-[#2a2a3e] border-t border-gray-700 text-[11px] text-gray-500 text-center flex justify-between px-6">
-        <span className="opacity-50 uppercase tracking-widest font-bold">
-          GPU Accelerated Renderer
-        </span>
-        <div className="flex items-center gap-4">
-          <span className="text-gray-400 font-medium uppercase tracking-tighter">
-            Modo Correctivo
-          </span>
-          <div className="w-8 h-4 bg-gray-700 rounded-full relative">
-            <div
-              className={`absolute top-0.5 w-3 h-3 rounded-full transition-all ${cleanMode ? "right-0.5 bg-indigo-500" : "left-0.5 bg-gray-500"}`}
-            />
-          </div>
-          <span className="ml-4">{PPS}px/sec</span>
-        </div>
-      </div>
+      <div className="p-2 bg-[#2a2a3e] border-t border-gray-700 text-[11px] text-gray-500 text-center flex justify-between px-6"></div>
     </div>
   );
 }

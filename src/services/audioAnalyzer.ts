@@ -83,22 +83,40 @@ function detectBPM(channelData: Float32Array, sampleRate: number): number {
 
 function detectOnsets(channelData: Float32Array, sampleRate: number): number[] {
   const hopSize = Math.floor(sampleRate * 0.01);
-  const envelope: number[] = [];
+  const broadband: number[] = [];
+  const highband: number[] = [];
 
   for (let i = 0; i < channelData.length; i += hopSize) {
     const slice = channelData.slice(i, Math.min(i + hopSize, channelData.length));
+
+    // Energía broadband (kicks, snares)
     let e = 0;
     for (let j = 0; j < slice.length; j++) e += slice[j] * slice[j];
-    envelope.push(Math.sqrt(e / slice.length));
+    broadband.push(Math.sqrt(e / slice.length));
+
+    // Energía high-pass simple (hi-hats): diferencia entre muestras consecutivas
+    // captura cambios rápidos de alta frecuencia
+    let hf = 0;
+    for (let j = 1; j < slice.length; j++) {
+      const d = slice[j] - slice[j - 1];
+      hf += d * d;
+    }
+    highband.push(Math.sqrt(hf / slice.length));
   }
 
-  const threshold = computeThreshold(envelope);
+  const threshBroad = computeThreshold(broadband);
+  const threshHigh  = computeThreshold(highband);
   const onsets: number[] = [];
-  const minGapSamples = sampleRate * 0.03; // 30 ms
+  const minGapSamples = sampleRate * 0.025; // 25 ms
 
-  for (let i = 1; i < envelope.length - 1; i++) {
-    const deriv = envelope[i] - envelope[i - 1];
-    if (deriv > threshold && envelope[i] > 0.01) {
+  for (let i = 1; i < broadband.length - 1; i++) {
+    const broadDeriv = broadband[i] - broadband[i - 1];
+    const highDeriv  = highband[i]  - highband[i - 1];
+
+    const isBroadOnset = broadDeriv > threshBroad && broadband[i] > 0.01;
+    const isHighOnset  = highDeriv  > threshHigh  && highband[i]  > 0.005;
+
+    if (isBroadOnset || isHighOnset) {
       const lastOnset = onsets.length > 0 ? onsets[onsets.length - 1] : 0;
       if (i * hopSize - lastOnset > minGapSamples) {
         onsets.push(i * hopSize);
@@ -118,7 +136,7 @@ async function classifyWithTF(
   onsets: number[]
 ): Promise<DrumEvent[]> {
   const W = 2048;
-  const limitedOnsets = onsets.slice(0, 2000); 
+  const limitedOnsets = onsets.slice(0, 2000);
 
   const promises = limitedOnsets.map(async (onset) => {
     const start = Math.max(0, onset - W / 2);

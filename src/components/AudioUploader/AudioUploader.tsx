@@ -124,10 +124,13 @@ export function AudioUploader({
       <div className="w-full max-w-[700px] p-6 sm:p-10 rounded-2xl bg-bg-dark/80 backdrop-blur-md border border-primary/20 flex flex-col gap-8">
         <div className="text-center flex flex-col items-center gap-4">
           <img
-            src="/logo.png"
+            src="/logo_simple.png"
             alt="Drumia Logo"
             className="w-[100px] rounded-lg h-[100px] sm:w-[120px] sm:h-[120px] object-contain drop-shadow-[0_0_25px_rgba(139,92,246,0.5)] animate-logo-pulse"
           />
+          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            DRUMIA
+          </h1>
           <p className="text-gray-400 text-base sm:text-lg">Aprende a tocar batería</p>
         </div>
 
@@ -169,6 +172,7 @@ export function AudioUploader({
                 <p className="text-[#666] text-xs m-0">o arrastra aquí</p>
               </>
             )}
+            <p className="text-pink-500 text-xs m-0">Debes subir un audio solo de bateria (stem)</p>
           </div>
 
           <div className="p-6 border-2 border-dashed border-gray-600 rounded-xl text-center transition-all bg-white/5 hover:border-pink-500 hover:bg-pink-500/5 cursor-pointer flex flex-col gap-4 items-center justify-center min-h-[160px] sm:min-h-[200px]">
@@ -197,9 +201,10 @@ export function AudioUploader({
                 >
                   {isDecoding ? "Decodificando..." : "Selecciona canción"}
                 </button>
-                <p className="text-[#666] text-xs m-0">(para mejor práctica)</p>
+                <p className="text-[#666] text-xs m-0"></p>
               </>
             )}
+            <p className="text-[#666] text-xs m-0">(para acompañar la práctica)</p>
           </div>
         </div>
 

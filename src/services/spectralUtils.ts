@@ -1,3 +1,8 @@
+export const NUM_MELS = 64;
+export const NUM_FRAMES = 64;
+const FRAME_SIZE = 1024;
+const HOP_SIZE = 512;
+
 // Cooley-Tukey FFT — O(n log n)
 export function computeFFTMagnitude(signal: Float32Array): Float32Array {
   let n = 1;
@@ -75,6 +80,69 @@ export function computeBandEnergy(
   let energy = 0;
   for (let i = lo; i < hi; i++) energy += mag[i] * mag[i];
   return energy;
+}
+
+// ─── Mel-spectrogram ──────────────────────────────────────────────────────────
+
+function hzToMel(hz: number): number { return 2595 * Math.log10(1 + hz / 700); }
+function melToHz(mel: number): number { return 700 * (Math.pow(10, mel / 2595) - 1); }
+
+let _melCache: { sr: number; data: Float32Array } | null = null;
+
+function buildMelFilterbank(sampleRate: number): Float32Array {
+  if (_melCache?.sr === sampleRate) return _melCache.data;
+  const fftBins = FRAME_SIZE / 2;
+  const filters = new Float32Array(NUM_MELS * fftBins);
+  const melMin = hzToMel(20);
+  const melMax = hzToMel(sampleRate / 2);
+  const pts = Array.from({ length: NUM_MELS + 2 }, (_, i) =>
+    Math.floor((melToHz(melMin + (i / (NUM_MELS + 1)) * (melMax - melMin)) / (sampleRate / 2)) * (fftBins - 1))
+  );
+  for (let m = 0; m < NUM_MELS; m++) {
+    const l = pts[m], c = pts[m + 1], r = pts[m + 2];
+    for (let k = l; k <= r; k++) {
+      filters[m * fftBins + k] = k <= c
+        ? (c > l ? (k - l) / (c - l) : 0)
+        : (r > c ? (r - k) / (r - c) : 0);
+    }
+  }
+  _melCache = { sr: sampleRate, data: filters };
+  return filters;
+}
+
+/**
+ * Extract a log-mel spectrogram from audio that starts at the onset.
+ * Audio should begin ~50ms before the hit (caller's responsibility).
+ * Returns a flat Float32Array of length NUM_MELS * NUM_FRAMES,
+ * ordered [mel0_f0, mel1_f0, ..., mel63_f0, mel0_f1, ...] → shape [NUM_FRAMES, NUM_MELS].
+ */
+export function extractMelSpectrogram(audioData: Float32Array, sampleRate: number): Float32Array {
+  const filters = buildMelFilterbank(sampleRate);
+  const fftBins = FRAME_SIZE / 2;
+  const out = new Float32Array(NUM_FRAMES * NUM_MELS);
+
+  for (let f = 0; f < NUM_FRAMES; f++) {
+    const frameStart = f * HOP_SIZE;
+    const frame = new Float32Array(FRAME_SIZE);
+    for (let i = 0; i < FRAME_SIZE; i++) {
+      const idx = frameStart + i;
+      frame[i] = idx < audioData.length ? audioData[idx] : 0;
+    }
+    const mag = computeFFTMagnitude(frame);
+    for (let m = 0; m < NUM_MELS; m++) {
+      let e = 0;
+      for (let k = 0; k < fftBins; k++) e += mag[k] * filters[m * fftBins + k];
+      out[f * NUM_MELS + m] = Math.log(e + 1e-8);
+    }
+  }
+
+  // Per-instance min-max normalization → [0, 1]
+  let min = out[0], max = out[0];
+  for (let i = 1; i < out.length; i++) { if (out[i] < min) min = out[i]; if (out[i] > max) max = out[i]; }
+  const range = max - min + 1e-8;
+  for (let i = 0; i < out.length; i++) out[i] = (out[i] - min) / range;
+
+  return out;
 }
 
 // 128 log-spaced energy bins, normalized to sum=1
