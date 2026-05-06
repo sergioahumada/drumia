@@ -3,6 +3,7 @@ export type DrumEventType = 'kick' | 'snare' | 'hat' | 'tom1' | 'tom2' | 'tom3' 
 export interface DrumEvent {
   time: number;
   type: DrumEventType;
+  rawType?: DrumEventType;
   intensity: number;
   duration?: number;
 }

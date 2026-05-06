@@ -26,6 +26,7 @@ function App() {
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [cleanMode, setCleanMode] = useState(false);
   const [minDistance, setMinDistance] = useState(180);
+  const [spectralCorrection, setSpectralCorrection] = useState(false);
   const [zenMode, setZenMode] = useState(false);
   const songInputRef = React.useRef<HTMLInputElement>(null);
   const [isUploadingSong, setIsUploadingSong] = useState(false);
@@ -33,7 +34,10 @@ function App() {
   // Usar el buffer de la canción si existe, sino la batería
   const playbackBuffer = songBuffer || drumBuffer;
   const audioPlayback = useAudioPlayback(playbackBuffer);
-  const score = React.useMemo(() => (analysis ? generateScore(analysis) : null), [analysis]);
+  const score = React.useMemo(
+    () => (analysis ? generateScore(analysis, spectralCorrection) : null),
+    [analysis, spectralCorrection],
+  );
 
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -215,7 +219,7 @@ function App() {
                 >
                   <span className="text-lg">{cleanMode ? "✨" : "🧹"}</span>
                   <span className="text-[10px] font-bold uppercase tracking-widest">
-                    Modo Correctivo {cleanMode ? "ON" : "OFF"}
+                    Filtro Duplicados {cleanMode ? "ON" : "OFF"}
                   </span>
                 </button>
 
@@ -238,6 +242,20 @@ function App() {
               </div>
 
               <div className="flex items-center gap-4">
+                <button
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all hover:scale-105 ${
+                    spectralCorrection
+                      ? "bg-secondary/20 text-secondary border border-secondary/40"
+                      : "bg-white/5 text-gray-400 hover:text-white"
+                  }`}
+                  onClick={() => setSpectralCorrection(!spectralCorrection)}
+                  title="Corrección espectral hat/snare"
+                >
+                  <span className="text-lg">🎛️</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest">
+                    Ajuste Espectral {spectralCorrection ? "ON" : "OFF"}
+                  </span>
+                </button>
                 <div className="hidden sm:block w-px h-8 bg-white/10 mx-2" />
                 <button
                   className="flex items-center gap-2 px-4 py-2 bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-all hover:scale-105"

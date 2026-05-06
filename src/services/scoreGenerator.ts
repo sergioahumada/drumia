@@ -33,7 +33,7 @@ export const DRUM_LINES = [
   { position: 7, type: 'kick', label: 'Kick', color: '#f43f5e' },   // Rosa/Rojo neón
 ];
 
-export function generateScore(analysis: AnalysisResult): DrumScore {
+export function generateScore(analysis: AnalysisResult, spectralCorrection = true): DrumScore {
   const beatDuration = (60 / analysis.bpm) * 1000;
   const timeSignature = analysis.timeSignature;
   const beatsPerMeasure = parseInt(timeSignature.split('/')[0]);
@@ -48,12 +48,13 @@ export function generateScore(analysis: AnalysisResult): DrumScore {
 
     const notes: Note[] = measureEvents
       .map((event) => {
-        const drumLine = DRUM_LINES.find((line) => line.type === event.type);
+        const effectiveType = spectralCorrection ? event.type : (event.rawType ?? event.type);
+        const drumLine = DRUM_LINES.find((line) => line.type === effectiveType);
         if (!drumLine) return null;
 
         return {
           time: event.time,
-          type: event.type,
+          type: effectiveType,
           position: drumLine.position,
           intensity: event.intensity,
           label: drumLine.label,

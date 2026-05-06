@@ -142,11 +142,25 @@ async function classifyWithTF(
     const start = Math.max(0, onset - W / 2);
     const frame = channelData.slice(start, Math.min(channelData.length, onset + W / 2));
     const features = extractAudioFeatures(frame, sampleRate);
-    const type = await clf.classify(features);
+    const rawType = await clf.classify(features);
     const intensity = computeRMS(frame);
+
+    let type = rawType;
+    if (rawType === 'hat' || rawType === 'snare') {
+      const mag = computeFFTMagnitude(frame);
+      let total = 0;
+      for (let i = 0; i < mag.length; i++) total += mag[i] * mag[i];
+      const t = total || 1;
+      const body = computeBandEnergy(mag, sampleRate, 150, 2500) / t;
+      const high = computeBandEnergy(mag, sampleRate, 6000, sampleRate / 2) / t;
+      if (body > 0.3) type = 'snare';
+      else if (high > 0.65 && body < 0.12) type = 'hat';
+    }
+
     return {
       time: (onset / sampleRate) * 1000,
       type,
+      rawType,
       intensity: Math.min(1, intensity * 2),
     };
   });
